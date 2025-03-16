@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "900874407830",
+    "project_id": "e-clinic-575d4",
+    "storage_bucket": "e-clinic-575d4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:900874407830:android:2a3beb07b2d21bd74957b7",
+        "android_client_info": {
+          "package_name": "com.example.eclinic1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDf7JlO3Gp4teDzHY1YDEQqhH80IeJkAE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

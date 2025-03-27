@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
     alias(libs.plugins.kotlin.compose)
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
+
 
 }
 
@@ -87,7 +87,8 @@ dependencies {
 
     // Other dependencies
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui.graphics)  // Bill of Materials dla Compose
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.navigation.compose)  // Bill of Materials dla Compose
 
     // Test dependencies
     testImplementation(libs.junit)

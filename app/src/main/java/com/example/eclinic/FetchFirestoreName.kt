@@ -13,27 +13,34 @@ open class FetchFirestoreName : ViewModel() {
     val db = FirebaseFirestore.getInstance()
 
     init {
-        this.fetchUserData()
+        fetchUserData()
     }
 
     open fun fetchUserData() {
-        val userId = auth.currentUser?.uid // Pobiera UID zalogowanego użytkownika
-        if (userId != null) {
-            db.collection("users").document(userId).get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        val firstname=document.getString("firstname") ?: "Unknown"
-                        val secondname=document.getString("secondname")?:"Unknown"
-                        _userName.value ="$firstname $secondname"
-                    } else {
-                        _userName.value = "No Data"
-                    }
-                }
-                .addOnFailureListener {
-                    _userName.value = "Error"
-                }
-        } else {
+        val userId = auth.currentUser?.uid
+
+        if (userId.isNullOrEmpty()) {
             _userName.value = "Not Logged In"
+            return
         }
+
+        db.collection("users").document(userId).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val firstname = document.getString("firstname") ?: ""
+                    val surname = document.getString("surname") ?: "" // Changed from "secondname" to "surname"
+
+                    if (firstname.isNotBlank() || surname.isNotBlank()) {
+                        _userName.value = "$firstname $surname".trim()
+                    } else {
+                        _userName.value = "No Name Found"
+                    }
+                } else {
+                    _userName.value = "User Not Found"
+                }
+            }
+            .addOnFailureListener { e ->
+                _userName.value = "Error: ${e.localizedMessage}"
+            }
     }
 }

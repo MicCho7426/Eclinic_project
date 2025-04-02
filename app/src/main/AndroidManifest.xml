@@ -13,35 +13,38 @@
         android:theme="@style/Theme.Eclinic"
         tools:targetApi="31">
         <activity
+            android:name=".StartActivity"
+            android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+        </activity>
+        <activity
+            android:name=".DoctorActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AdminActivity"
+            android:exported="false" />
+        <activity
             android:name=".StartAdmin"
             android:exported="false"
             android:label="@string/title_activity_start_admin"
             android:theme="@style/Theme.Eclinic" />
         <activity
-            android:name=".Start"
+            android:name=".FirestoreHelper"
             android:exported="false"
             android:label="@string/title_activity_start"
             android:theme="@style/Theme.Eclinic" />
         <activity
             android:name=".LoginActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="true"/>
         <activity
-            android:name=".MainActivity"
-            android:exported="false" />
+            android:name=".HomeActivity"
+            android:exported="true" />
         <activity
-            android:name=".RegisterActivity"
+            android:name=".AppNavHost"
             android:exported="false" />
-        <intent-filter>
-            <action android:name="android.intent.action.MAIN" />
-
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent-filter>
     </application>
 
 </manifest>

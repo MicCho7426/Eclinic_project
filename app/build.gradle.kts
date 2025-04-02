@@ -65,6 +65,7 @@ dependencies {
     // Firebase dependencies
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.storage.ktx)
 
     // AndroidX dependencies
     implementation(libs.androidx.core.ktx)

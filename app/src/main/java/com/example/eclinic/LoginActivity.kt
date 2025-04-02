@@ -1,54 +1,154 @@
 package com.example.eclinic
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
+import android.util.Log
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
+class LoginActivity : ComponentActivity() {
 
-class LoginActivity : AppCompatActivity() {
-
-    private lateinit var auth: FirebaseAuth
-
-    @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
-
-        auth = FirebaseAuth.getInstance()
-
-        val emailEditText = findViewById<EditText>(R.id.editTextEmail)
-        val passwordEditText = findViewById<EditText>(R.id.editTextPassword)
-        val loginButton = findViewById<Button>(R.id.buttonLogin)
-        val registerButton = findViewById<Button>(R.id.buttonRegister)
-
-        loginButton.setOnClickListener {
-            val email = emailEditText.text.toString().trim()
-            val password = passwordEditText.text.toString().trim()
-
-            if (email.isEmpty() || password.isEmpty()) {
-                Toast.makeText(this, "Please enter email and password", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            auth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        Toast.makeText(this, "Login Successful", Toast.LENGTH_SHORT).show()
-                        startActivity(Intent(this, HomeActivity::class.java))
-                        finish()
-                    } else {
-                        Toast.makeText(this, "Login Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-        }
-
-        registerButton.setOnClickListener {
-            startActivity(Intent(this, RegisterActivity::class.java))
+        setContent {
+            val navController = rememberNavController() // Ensure correct NavController initialization
+            AppNavHost(
+                navController,
+                startDestination = "login"
+            ) // Pass it to the AppNavHost
         }
     }
 }
+
+@Composable
+fun LoginScreen(navController: NavController) {
+    val auth = FirebaseAuth.getInstance()
+    val context = LocalContext.current
+    val emailState = remember { mutableStateOf("") }
+    val passwordState = remember { mutableStateOf("") }
+    val db = FirebaseFirestore.getInstance()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "Login", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Email Input
+        OutlinedTextField(
+            value = emailState.value,
+            onValueChange = { emailState.value = it },
+            label = { Text("Email") }
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Password Input
+        OutlinedTextField(
+            value = passwordState.value,
+            onValueChange = { passwordState.value = it },
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation()
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Login Button
+        Button(
+            onClick = {
+                auth.signInWithEmailAndPassword(emailState.value, passwordState.value)
+                    .addOnSuccessListener {
+                        val userId = auth.currentUser?.uid
+                        if (userId != null) {
+                            db.collection("users").document(userId).get()
+                                .addOnSuccessListener { document ->
+                                    if (document.exists()) {
+                                        val role = document.getString("role") ?: "user"
+
+                                        if (role == "patient") {
+                                            // Check if medical data exists
+                                            db.collection("patients").document(userId).get()
+                                                .addOnSuccessListener { patientDoc ->
+                                                    val hasMedicalData = patientDoc.exists()
+
+                                                    val destination = if (hasMedicalData) "main" else "patientData"
+
+                                                    navController.navigate(destination) {
+                                                        popUpTo("login") { inclusive = true }
+                                                    }
+                                                }
+                                                .addOnFailureListener {
+                                                    Toast.makeText(context, "Error checking medical data", Toast.LENGTH_SHORT).show()
+                                                }
+                                        } else {
+                                            // Navigate for admin and doctor
+                                            val destination = when (role) {
+                                                "admin" -> "adminHome"
+                                                "doctor" -> "doctorHome"
+                                                else -> "main"
+                                            }
+                                            navController.navigate(destination) {
+                                                popUpTo("login") { inclusive = true }
+                                            }
+                                        }
+                                    }
+                                }
+                                .addOnFailureListener {
+                                    Toast.makeText(context, "Error fetching user role", Toast.LENGTH_SHORT).show()
+                                }
+                        }
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(context, "Login Failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                    }
+            }
+        ) {
+            Text("Login")
+        }
+
+
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Register Button
+        TextButton(
+            onClick = { navController.navigate("register") }
+        ) {
+            Text("Don't have an account? Register Here")
+        }
+    }
+}
+
+
+
+
+
+
+

@@ -1,9 +1,7 @@
 package com.example.eclinic
 
+import FetchFirestoreName
 import android.annotation.SuppressLint
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,43 +10,38 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(fetchFirestore: FetchFirestoreName = viewModel()) {
     val lightGray = Color(0xFFEAEAEA)
+    val username by fetchFirestore.userName.collectAsState()
 
-    Scaffold(
-        bottomBar = { BottomNavigationBar(navController) },
-        containerColor = lightGray
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .background(lightGray)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            Text(
-                text = "Welcome firstname surname",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+        Text(
+            text = "Welcome $username",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
 
-            Section(title = "Calendar")
-            Spacer(modifier = Modifier.height(16.dp))
-            Section(title = "Appointments")
-        }
+        Section(title = "Calendar")
+        Spacer(modifier = Modifier.height(16.dp))
+        Section(title = "Appointments")
     }
 }
 
@@ -75,23 +68,4 @@ fun Section(title: String) {
     }
 }
 
-@Composable
-fun BottomNavigationBar(navController: NavController) {
-    NavigationBar(containerColor = Color.Black) {
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White) },
-            selected = false,
-            onClick = { navController.navigate("home") }
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White) },
-            selected = false,
-            onClick = { navController.navigate("search") }
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, contentDescription = "Profile", tint = Color.White) },
-            selected = false,
-            onClick = { navController.navigate("profile") }
-        )
-    }
-}
+

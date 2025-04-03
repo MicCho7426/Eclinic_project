@@ -1,16 +1,13 @@
 package com.example.eclinic
 
 import android.util.Log
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,13 +19,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 @Composable
 fun RegisterScreen(
     navController: NavController,
-    onRegisterClick: (String, String, String, String, String) -> Unit
+    onRegisterClick: (String, String, String, String) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var firstname by remember { mutableStateOf("") }
     var surname by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf("Patient") }
 
     Column(
         modifier = Modifier
@@ -46,8 +42,8 @@ fun RegisterScreen(
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp)) // Add spacing between fields
 
+        Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = password,
             onValueChange = { password = it },
@@ -55,45 +51,28 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = PasswordVisualTransformation()
         )
-        Spacer(modifier = Modifier.height(8.dp))
 
+        Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = firstname,
             onValueChange = { firstname = it },
             label = { Text("First Name") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
 
+        Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = surname,
             onValueChange = { surname = it },
             label = { Text("Surname") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
 
-        // Role Selection
-        val roles = listOf("Patient", "Doctor", "Admin")
-        roles.forEach { role ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = selectedRole == role,
-                    onClick = { selectedRole = role }
-                )
-                Text(text = role, modifier = Modifier.padding(start = 8.dp))
-            }
-        }
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Register Button
         Button(
             onClick = {
                 if (email.isNotBlank() && password.isNotBlank() && firstname.isNotBlank() && surname.isNotBlank()) {
-                    onRegisterClick(email, password, firstname, surname, selectedRole)
+                    onRegisterClick(email, password, firstname, surname)
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -101,21 +80,20 @@ fun RegisterScreen(
             Text(text = "Register")
         }
 
-        // Go to Login
         TextButton(onClick = { navController.navigate("login") }) {
             Text("Already have an account? Log in")
         }
     }
 }
+
 fun registerUser(
     email: String,
     password: String,
     firstname: String,
     surname: String,
-    role: String,
     navController: NavController
 ) {
-    Log.d("Register", "registerUser() called") // ADD THIS
+    Log.d("Register", "registerUser() called")
 
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
@@ -123,7 +101,7 @@ fun registerUser(
     auth.createUserWithEmailAndPassword(email, password)
         .addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                Log.d("Register", "User created successfully") // ADD THIS
+                Log.d("Register", "User created successfully")
 
                 val userId = auth.currentUser?.uid
                 if (userId != null) {
@@ -131,14 +109,14 @@ fun registerUser(
                         "firstname" to firstname,
                         "surname" to surname,
                         "email" to email,
-                        "role" to role,
-                        "status" to "pending",  // ADD THIS FOR ADMIN APPROVAL
+                        "role" to "Patient",  // Rola przypisywana automatycznie
+                        "status" to "pending", // Do ewentualnej późniejszej akceptacji przez admina
                         "uid" to userId
                     )
 
                     db.collection("users").document(userId).set(user)
                         .addOnSuccessListener {
-                            Log.d("Register", "User data saved to Firestore") // ADD THIS
+                            Log.d("Register", "User data saved to Firestore")
                             navController.navigate("login") {
                                 popUpTo("register") { inclusive = true }
                             }

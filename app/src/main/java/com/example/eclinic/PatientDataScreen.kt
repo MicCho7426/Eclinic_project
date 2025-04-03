@@ -5,26 +5,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -34,25 +19,36 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
-import java.util.UUID
 
 @Composable
 fun PatientDataScreen(navController: NavController) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
+    val userId = auth.currentUser?.uid ?: return
 
     var dob by remember { mutableStateOf("") }
-    var medicalHistory by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
 
+    // Fetch existing user data
+    LaunchedEffect(userId) {
+        db.collection("users").document(userId).get()
+            .addOnSuccessListener { document ->
+                document?.let {
+                    dob = it.getString("dob") ?: ""
+                    height = it.getDouble("height")?.toString() ?: ""
+                    weight = it.getDouble("weight")?.toString() ?: ""
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "Error loading data: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         selectedFileUri = uri
-    }
-    IconButton(onClick = { navController.navigateUp() }) {
-        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
     }
 
     Column(
@@ -60,19 +56,15 @@ fun PatientDataScreen(navController: NavController) {
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
-    )
-    {
+    ) {
+        IconButton(onClick = { navController.navigateUp() }) {
+            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+
         OutlinedTextField(
             value = dob,
             onValueChange = { dob = it },
             label = { Text("Date of Birth (YYYY-MM-DD)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = medicalHistory,
-            onValueChange = { medicalHistory = it },
-            label = { Text("Medical History") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -90,44 +82,40 @@ fun PatientDataScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth()
         )
 
-        var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-
-        val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            selectedFileUri = uri // Store selected file
-        }
-
         Button(onClick = { launcher.launch("*/*") }) {
             Text("Upload Medical File")
         }
 
-// Show selected file details if a file is chosen
         selectedFileUri?.let { uri ->
             Text("Selected file: ${uri.lastPathSegment}")
-
             Button(onClick = { selectedFileUri = null }) {
                 Text("Remove File")
             }
         }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = {
-                val userId = auth.currentUser?.uid ?: return@Button
-                val patientData = hashMapOf(
-                    "dob" to dob,
-                    "medicalHistory" to medicalHistory,
-                    "height" to height,
-                    "weight" to weight
-                )
+                val updates = mutableMapOf<String, Any>()
 
-                db.collection("patients").document(userId)
-                    .set(patientData, SetOptions.merge())
+                if (dob.isNotBlank()) updates["dob"] = dob
+                height.toDoubleOrNull()?.takeIf { it > 0 }?.let { updates["height"] = it }
+                weight.toDoubleOrNull()?.takeIf { it > 0 }?.let { updates["weight"] = it }
+
+                if (updates.isEmpty()) {
+                    Toast.makeText(context, "Please fill at least one valid field", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+
+                db.collection("users").document(userId)
+                    .set(updates, SetOptions.merge())
                     .addOnSuccessListener {
-                        Toast.makeText(context, "Data Saved!", Toast.LENGTH_SHORT).show()
-                        navController.navigate("profile")
+                        Toast.makeText(context, "Data saved!", Toast.LENGTH_SHORT).show()
+                        navController.navigate("main") // lub "profile" jeśli masz taką trasę
                     }
                     .addOnFailureListener {
-                        Toast.makeText(context, "Error: ${it.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Save failed: ${it.message}", Toast.LENGTH_LONG).show()
                     }
 
                 selectedFileUri?.let { uri ->
@@ -140,6 +128,8 @@ fun PatientDataScreen(navController: NavController) {
         }
     }
 }
+
+
 private fun uploadFileToFirebase(uri: Uri, userId: String, context: Context, db: FirebaseFirestore) {
     val storageRef = FirebaseStorage.getInstance().reference
     val fileRef = storageRef.child("patient_files/$userId/${uri.lastPathSegment}")
@@ -147,7 +137,7 @@ private fun uploadFileToFirebase(uri: Uri, userId: String, context: Context, db:
     fileRef.putFile(uri)
         .addOnSuccessListener {
             fileRef.downloadUrl.addOnSuccessListener { downloadUrl ->
-                db.collection("patients").document(userId)
+                db.collection("users").document(userId)
                     .update("uploadedFiles", FieldValue.arrayUnion(downloadUrl.toString()))
                     .addOnSuccessListener {
                         Toast.makeText(context, "File Uploaded!", Toast.LENGTH_SHORT).show()

@@ -66,14 +66,16 @@ fun ProfileScreen(navController: NavController) {
             if (role == "patient") { // ✅ Fixed case sensitivity
                 val dob = userData?.get("dob") as? String ?: "N/A"
                 val medicalHistory = userData?.get("medicalHistory") as? String ?: "N/A"
-                val height = userData?.get("height") as? String ?: "N/A"
-                val weight = userData?.get("weight") as? String ?: "N/A"
+                val height = (userData?.get("height") as? Number)?.toDouble() ?: -1.0
+                val weight = (userData?.get("weight") as? Number)?.toDouble() ?: -1.0
+
+
 
                 //Text("Role: $role")   Debugging output
                 Text("Date of Birth: $dob")
                 Text("Medical History: $medicalHistory")
-                Text("Height: $height cm")
-                Text("Weight: $weight kg")
+                Text("Height: ${if (height > 0) "$height cm" else "N/A"}")
+                Text("Weight: ${if (weight > 0) "$weight kg" else "N/A"}")
 
                 // Display uploaded files if available
                 val uploadedFiles = userData?.get("uploadedFiles") as? List<String>

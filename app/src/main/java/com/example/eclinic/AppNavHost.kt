@@ -11,10 +11,11 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
         composable("splash") { SplashScreen() } // Splash screen before navigation
         composable("login") { LoginScreen(navController) }
         composable("register") {
-            RegisterScreen(navController) { email, password, firstname, surname, role ->
-                registerUser(email, password, firstname, surname, role, navController)
+            RegisterScreen(navController) { email, password, firstname, surname ->
+                registerUser(email, password, firstname, surname, navController)
             }
         }
+
         composable("main") { MainScreen(navController) }
         composable("admin") { AdminScreen(navController) }
         composable("patientData") { PatientDataScreen(navController) }

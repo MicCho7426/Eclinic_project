@@ -21,18 +21,18 @@
         </intent-filter>
         </activity>
         <activity
-            android:name=".DoctorActivity"
+            android:name=".doctor.DoctorActivity"
             android:exported="false" />
         <activity
-            android:name=".AdminActivity"
+            android:name=".admin.AdminActivity"
             android:exported="false" />
         <activity
-            android:name=".StartAdmin"
+            android:name=".admin.StartAdmin"
             android:exported="false"
             android:label="@string/title_activity_start_admin"
             android:theme="@style/Theme.Eclinic" />
         <activity
-            android:name=".FirestoreHelper"
+            android:name=".firebase.FirestoreHelper"
             android:exported="false"
             android:label="@string/title_activity_start"
             android:theme="@style/Theme.Eclinic" />
@@ -40,7 +40,7 @@
             android:name=".LoginActivity"
             android:exported="true"/>
         <activity
-            android:name=".HomeActivity"
+            android:name=".home.HomeActivity"
             android:exported="true" />
         <activity
             android:name=".AppNavHost"

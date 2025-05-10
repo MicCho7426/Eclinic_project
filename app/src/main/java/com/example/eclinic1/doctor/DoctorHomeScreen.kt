@@ -1,0 +1,115 @@
+package com.example.eclinic1.doctor
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.eclinic.R
+import com.google.firebase.auth.FirebaseAuth
+
+@Composable
+fun DoctorHomeScreen(navController: NavController) {
+    val doctorNavController = rememberNavController()
+    val items = listOf(
+        DoctorNavItem.Home,
+        DoctorNavItem.Search,
+        DoctorNavItem.Profile
+    )
+
+    Scaffold(
+        bottomBar = {
+            Box(modifier = Modifier) {
+                DoctorBottomNavigation(doctorNavController, items)
+            }
+        }
+    ) { padding ->
+        Box(modifier = Modifier) {
+            DoctorNavHost(
+                navController = doctorNavController,
+                parentNavController = navController,
+                modifier = Modifier.padding(padding)
+            )
+        }
+    }
+}
+
+// Navigation Host
+@Composable
+fun DoctorNavHost(
+    navController: NavHostController,
+    parentNavController: NavController, // Add parent nav controller
+    modifier: Modifier
+) {
+    NavHost(
+        navController = navController,
+        startDestination = DoctorNavItem.Home.route
+    ) {
+        composable(DoctorNavItem.Home.route) { DoctorHomeContent() }
+        composable(DoctorNavItem.Search.route) { DoctorSearchScreen() }
+        composable(DoctorNavItem.Profile.route) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                DoctorProfileScreen(
+                    navController = navController,
+                    onLogout = {
+                        // Handle logout
+                        FirebaseAuth.getInstance().signOut()
+                        parentNavController.navigate("login") {
+                            popUpTo(parentNavController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+// Bottom Navigation Bar
+@Composable
+fun DoctorBottomNavigation(
+    navController: NavHostController,
+    items: List<DoctorNavItem>
+) {
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+    NavigationBar {
+        items.forEach { item ->
+            NavigationBarItem(
+                icon = { Icon(ImageVector.vectorResource(item.icon), contentDescription = null) },
+                label = { Text(item.label) },
+                selected = currentRoute == item.route,
+                onClick = {
+                    navController.navigate(item.route) {
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+    }
+}
+
+// Navigation Items
+sealed class DoctorNavItem(
+    val route: String,
+    val label: String,
+    val icon: Int
+) {
+    object Home : DoctorNavItem("doctor_home", "Home", R.drawable.ic_home)
+    object Search : DoctorNavItem("doctor_search", "Search", R.drawable.ic_search)
+    object Profile : DoctorNavItem("doctor_profile", "Profile", R.drawable.ic_profile)
+}

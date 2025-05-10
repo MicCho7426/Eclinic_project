@@ -1,0 +1,7 @@
+[33m7fd9b8a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mBranch1[m[33m, [m[1;31morigin/AdminBranch[m[33m)[m HEAD@{0}: reset: moving to HEAD
+[33m7fd9b8a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mBranch1[m[33m, [m[1;31morigin/AdminBranch[m[33m)[m HEAD@{1}: merge origin/AdminBranch: Fast-forward
+[33maebd25f[m[33m ([m[1;31morigin/Branch1[m[33m)[m HEAD@{2}: rebase (finish): returning to refs/heads/Branch1
+[33maebd25f[m[33m ([m[1;31morigin/Branch1[m[33m)[m HEAD@{3}: rebase (start): checkout aebd25f5d96fb4d2e2e67cdeed44451cd0bb0cf6
+[33ma4e9a18[m[33m ([m[1;31morigin/branchmalysz1[m[33m)[m HEAD@{4}: merge origin/branchmalysz1: Fast-forward
+[33maebd25f[m[33m ([m[1;31morigin/Branch1[m[33m)[m HEAD@{5}: checkout: moving from master to Branch1
+[33m20b9933[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{6}: clone: from https://github.com/MicCho7426/Eclinic_project.git

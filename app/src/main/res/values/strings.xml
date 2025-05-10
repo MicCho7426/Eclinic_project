@@ -1,8 +1,28 @@
 <resources>
-    <string name="app_name">Eclinic</string>
+    <string name="app_name">E-Med</string>
     <string name="title_activity_start">Start</string>
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dashboard</string>
     <string name="title_notifications">Notifications</string>
     <string name="title_activity_start_admin">StartAdmin</string>
+    <string name="profile_title">My Profile</string>
+    <string name="refresh">Refresh</string>
+    <string name="logout">Log Out</string>
+    <string name="edit_medical_data">Edit Medical Data</string>/>
+    <string name="welcome_message">Welcome, %s</string>
+    <string name="patient">Patient</string>
+    <string name="new_appointment">New Appointment</string>
+    <string name="book_appointment">Book Appointment</string>
+    <string name="upcoming_appointments">Upcoming Appointments</string>
+    <string name="no_appointments">No upcoming appointments</string>
+    <string name="health_summary">Health Summary</string>
+    <string name="height">Height</string>
+    <string name="weight">Weight</string>
+    <string name="last_visit">Last Visit</string>
+    <string name="not_available">Not available</string>
+    <string name="upload">Upload</string>
+    <string name="video_consult">Video Consult</string>
+    <string name="dob">Date of Birth</string>
+    <string name="medical_history">Medical History</string>
+    <string name="medical_files">Medical Files</string>
 </resources>

@@ -54,6 +54,7 @@ android {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
+    implementation (platform("com.google.firebase:firebase-bom:32.3.1"))
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.7.8") // Główna biblioteka Compose
     implementation("androidx.compose.material3:material3:1.3.1") // Material3 dla Compose
@@ -61,6 +62,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")  // ViewModel dla Compose
     implementation(libs.androidx.activity.compose.v160)  // Zależności Activity dla Compose
     implementation("androidx.compose.runtime:runtime-livedata:1.7.8")  // Obsługa LiveData w Compose
+    implementation ("androidx.compose.material:material-icons-extended")
+    implementation ("com.google.accompanist:accompanist-swiperefresh:0.31.5-beta")
+    implementation ("androidx.browser:browser:1.5.0")
+    implementation ("com.google.android.gms:play-services-auth:20.7.0")
+    implementation ("com.google.android.gms:play-services-base:18.2.0")
 
     // Firebase dependencies
     implementation(libs.firebase.auth.ktx)

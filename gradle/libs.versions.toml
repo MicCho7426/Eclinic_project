@@ -26,6 +26,9 @@ navigationCompose = "2.8.9"
 androidx-activity-compose-v160 = { module = "androidx.activity:activity-compose", version.ref = "activityComposeVersion" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 firebase-storage-ktx = { module = "com.google.firebase:firebase-storage-ktx", version.ref = "firebaseStorageKtx" }
+google-firebase-auth-ktx = { module = "com.google.firebase:firebase-auth-ktx" }
+google-firebase-firestore-ktx = { module = "com.google.firebase:firebase-firestore-ktx" }
+google-firebase-storage-ktx = { module = "com.google.firebase:firebase-storage-ktx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

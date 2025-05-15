@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.eclinic"
+    namespace = "com.example.eclinic1"
     compileSdk = 35
 
     defaultConfig {
@@ -34,13 +34,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
         jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.3"
@@ -61,6 +59,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")  // ViewModel dla Compose
     implementation(libs.androidx.activity.compose.v160)  // Zależności Activity dla Compose
     implementation("androidx.compose.runtime:runtime-livedata:1.7.8")  // Obsługa LiveData w Compose
+    implementation("androidx.compose.material:material-icons-extended")
+
 
     // Firebase dependencies
     implementation(libs.firebase.auth.ktx)
@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
 
+
     // Lifecycle dependencies
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -100,6 +101,10 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    // Google Play Services - najnowsze wersje
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    implementation("com.google.android.gms:play-services-base:18.7.0")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+    implementation("com.google.android.gms:play-services-tasks:18.3.0")
 
-    }
-
+}

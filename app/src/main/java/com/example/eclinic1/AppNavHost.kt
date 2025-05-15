@@ -11,7 +11,7 @@ import com.example.eclinic1.home.MainScreen
 @Composable
 fun AppNavHost(navController: NavHostController, startDestination: String) {
     NavHost(navController = navController, startDestination = startDestination) {
-        composable("splash") { SplashScreen() }
+        composable("splash") { SplashScreen(navController) }
         composable("login") { LoginScreen(navController) }
         composable("register") {
             RegisterScreen(navController) { email, password, firstname, surname ->

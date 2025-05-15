@@ -1,6 +1,7 @@
 package com.example.eclinic1
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -81,6 +82,8 @@ fun LoginScreen(navController: NavController) {
                                 .addOnSuccessListener { document ->
                                     if (document.exists()) {
                                         val role = document.getString("role") ?: "user"
+                                        Toast.makeText(context, "Zalogowano jako: $role", Toast.LENGTH_SHORT).show()
+                                        Log.d("Login", "User role: $role")
 
                                         if (role == "patient") {
                                             // Check if medical data exists
@@ -88,9 +91,9 @@ fun LoginScreen(navController: NavController) {
                                                 .addOnSuccessListener { patientDoc ->
                                                     val hasMedicalData = patientDoc.exists()
 
-                                                    val destination = if (hasMedicalData) "main" else "patientData"
 
-                                                    navController.navigate(destination) {
+
+                                                    navController.navigate("main") {
                                                         popUpTo("login") { inclusive = true }
                                                     }
                                                 }
@@ -113,7 +116,10 @@ fun LoginScreen(navController: NavController) {
                                 .addOnFailureListener {
                                     Toast.makeText(context, "Error fetching user role", Toast.LENGTH_SHORT).show()
                                 }
+                        }else{
+                            Toast.makeText(context, "Brak danych użytkownika w Firestore", Toast.LENGTH_SHORT).show()
                         }
+                        Log.w("Login", "Document doesn't exist for userId: $userId")
                     }
                     .addOnFailureListener {
                         Toast.makeText(context, "Login Failed: ${it.message}", Toast.LENGTH_SHORT).show()

@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.eclinic"
+    namespace = "com.example.eclinic1"
     compileSdk = 35
 
     defaultConfig {
@@ -34,13 +34,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
         jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.3"
@@ -106,5 +104,10 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    }
+    // Google Play Services - najnowsze wersje
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    implementation("com.google.android.gms:play-services-base:18.7.0")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+    implementation("com.google.android.gms:play-services-tasks:18.3.0")
 
+}

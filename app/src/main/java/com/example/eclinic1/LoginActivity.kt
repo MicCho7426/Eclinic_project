@@ -1,6 +1,7 @@
 package com.example.eclinic1
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,36 +17,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.eclinic.AppNavHost
-import com.example.eclinic1.ui.theme.EclinicTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class LoginActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            EclinicTheme {
-                val navController = rememberNavController()
-                AppNavHost(navController, startDestination = "login")
-            }
+            val navController = rememberNavController() // Ensure correct NavController initialization
+            AppNavHost(
+                navController,
+                startDestination = "login"
+            ) // Pass it to the AppNavHost
         }
     }
 }
-
-
 
 @Composable
 fun LoginScreen(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val emailState = remember { mutableStateOf("") }
     val passwordState = remember { mutableStateOf("") }
-    val isLoading = remember { mutableStateOf(false) }
-    val errorMessage = remember { mutableStateOf<String?>(null) }
+    val db = FirebaseFirestore.getInstance()
 
     Column(
         modifier = Modifier
@@ -57,86 +52,99 @@ fun LoginScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        errorMessage.value?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 8.dp))
-        }
-
+        // Email Input
         OutlinedTextField(
             value = emailState.value,
             onValueChange = { emailState.value = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Email") }
         )
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        // Password Input
         OutlinedTextField(
             value = passwordState.value,
             onValueChange = { passwordState.value = it },
             label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
+            visualTransformation = PasswordVisualTransformation()
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // Login Button
         Button(
             onClick = {
-                if (emailState.value.isBlank() || passwordState.value.isBlank()) {
-                    errorMessage.value = "Please fill all fields"
-                    return@Button
-                }
+                auth.signInWithEmailAndPassword(emailState.value, passwordState.value)
+                    .addOnSuccessListener {
+                        val userId = auth.currentUser?.uid
+                        if (userId != null) {
+                            db.collection("users").document(userId).get()
+                                .addOnSuccessListener { document ->
+                                    if (document.exists()) {
+                                        val role = document.getString("role") ?: "user"
+                                        Toast.makeText(context, "Zalogowano jako: $role", Toast.LENGTH_SHORT).show()
+                                        Log.d("Login", "User role: $role")
 
-                isLoading.value = true
-                scope.launch {
-                    try {
-                        auth.signInWithEmailAndPassword(
-                            emailState.value,
-                            passwordState.value
-                        ).await()
+                                        if (role == "patient") {
+                                            // Check if medical data exists
+                                            db.collection("patients").document(userId).get()
+                                                .addOnSuccessListener { patientDoc ->
+                                                    val hasMedicalData = patientDoc.exists()
 
-                        val userId = auth.currentUser?.uid ?: throw Exception("User not found")
-                        val userDoc = FirebaseFirestore.getInstance()
-                            .collection("users")
-                            .document(userId)
-                            .get()
-                            .await()
 
-                        when (userDoc.getString("role")?.lowercase()) {
-                            "admin" -> navController.navigate("adminHome") {
-                                popUpTo("login") { inclusive = true }
-                            }
-                            "doctor" -> navController.navigate("doctorHome") {
-                                popUpTo("login") { inclusive = true }
-                            }
-                            else -> navController.navigate("patientHome") {
-                                popUpTo("login") { inclusive = true }
-                            }
+
+                                                    navController.navigate("patientHome") {
+                                                        popUpTo("login") { inclusive = true }
+                                                    }
+                                                }
+                                                .addOnFailureListener {
+                                                    Toast.makeText(context, "Error checking medical data", Toast.LENGTH_SHORT).show()
+                                                }
+                                        } else {
+                                            // Navigate for admin and doctor
+                                            val destination = when (role) {
+                                                "admin" -> "admin"
+                                                "doctor" -> "doctorHome"
+                                                else -> "main"
+                                            }
+                                            navController.navigate(destination) {
+                                                popUpTo("login") { inclusive = true }
+                                            }
+                                        }
+                                    }
+                                }
+                                .addOnFailureListener {
+                                    Toast.makeText(context, "Error fetching user role", Toast.LENGTH_SHORT).show()
+                                }
+                        }else{
+                            Toast.makeText(context, "Brak danych użytkownika w Firestore", Toast.LENGTH_SHORT).show()
                         }
-                    } catch (e: Exception) {
-                        errorMessage.value = "Login failed: ${e.message}"
-                    } finally {
-                        isLoading.value = false
+                        Log.w("Login", "Document doesn't exist for userId: $userId")
                     }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading.value
-        ) {
-            if (isLoading.value) {
-                CircularProgressIndicator()
-            } else {
-                Text("Login")
+                    .addOnFailureListener {
+                        Toast.makeText(context, "Login Failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                    }
             }
+        ) {
+            Text("Login")
         }
+
+
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        TextButton(onClick = { navController.navigate("register") }) {
+        // Register Button
+        TextButton(
+            onClick = { navController.navigate("register") }
+        ) {
             Text("Don't have an account? Register Here")
         }
     }
 }
+
+
+
+
+
+
+

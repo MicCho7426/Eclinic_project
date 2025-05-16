@@ -14,7 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.eclinic.R
+import com.example.eclinic1.R
 import com.example.eclinic1.SearchScreen
 import com.google.firebase.auth.FirebaseAuth
 

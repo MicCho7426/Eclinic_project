@@ -44,5 +44,6 @@ open class FetchFirestoreName : ViewModel() {
             .addOnFailureListener { e ->
                 _userName.value = "Error: ${e.localizedMessage}"
             }
+
     }
 }

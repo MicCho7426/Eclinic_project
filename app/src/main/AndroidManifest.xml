@@ -6,9 +6,9 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/logo"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/logo"
         android:supportsRtl="true"
         android:theme="@style/Theme.Eclinic"
         tools:targetApi="31">
@@ -16,23 +16,25 @@
             android:name="com.example.eclinic1.StartActivity"
             android:exported="true">
         </activity>
-
         <activity
             android:name="com.example.eclinic1.admin.AdminActivity"
             android:exported="false" />
         <activity
-            android:name="com.example.eclinic1.admin.StartAdmin"
+            android:name=".admin.StartAdmin"
             android:exported="false"
             android:label="@string/title_activity_start_admin"
             android:theme="@style/Theme.Eclinic" />
         <activity
-            android:name=".FirestoreHelper"
+            android:name=".firebase.FirestoreHelper"
             android:exported="false"
             android:label="@string/title_activity_start"
             android:theme="@style/Theme.Eclinic" />
         <activity
             android:name="com.example.eclinic1.LoginActivity"
             android:exported="true"/>
+        <activity
+            android:name=".HomeActivity"
+            android:exported="true" />
         <activity
             android:name=".AppNavHost"
             android:exported="false" />

@@ -1,9 +1,9 @@
 package com.example.eclinic1
 
 enum class Types(val type: String) {
-    ADMIN("admin"),
-    PATIENT("patient"),
-    DOCTOR("doctor");
+    admin("admin"),
+    patient("patient"),
+    doctor("doctor");
 
     companion object {
         fun fromString(type: String?): Types? {

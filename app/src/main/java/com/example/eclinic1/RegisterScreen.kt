@@ -1,11 +1,11 @@
-package com.example.eclinic
+package com.example.eclinic1
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -13,84 +13,18 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    navController: NavController
+    navController: NavController,
+    onRegisterClick: (String, String, String, String) -> Unit
 ) {
-    // State variables
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var firstname by remember { mutableStateOf("") }
     var surname by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf("Patient") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val roles = listOf("Patient", "Doctor", "Admin")
-    val coroutineScope = rememberCoroutineScope()
-    val auth = FirebaseAuth.getInstance()
-    val db = FirebaseFirestore.getInstance()
 
-    // Registration function
-    fun registerUser() {
-        if (email.isBlank() || password.isBlank() ||
-            firstname.isBlank() || surname.isBlank()) {
-            errorMessage = "Please fill all fields"
-            return
-        }
 
-        if (password.length < 6) {
-            errorMessage = "Password must be at least 6 characters"
-            return
-        }
-
-        isLoading = true
-        errorMessage = null
-
-        coroutineScope.launch {
-            try {
-                // 1. Create Firebase user
-                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
-                val userId = authResult.user?.uid ?: throw Exception("User creation failed")
-
-                // 2. Save user data to Firestore
-                val userData = hashMapOf(
-                    "firstname" to firstname,
-                    "surname" to surname,
-                    "email" to email,
-                    "role" to selectedRole.lowercase(),
-                    "status" to "active",
-                    "uid" to userId
-                )
-
-                db.collection("users").document(userId)
-                    .set(userData)
-                    .await()
-
-                // 3. Navigate based on role
-                when (selectedRole.lowercase()) {
-                    "admin" -> navController.navigate("adminHome") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                    "doctor" -> navController.navigate("doctorHome") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                    else -> navController.navigate("patientHome/$userId") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                }
-            } catch (e: Exception) {
-                errorMessage = "Registration failed: ${e.message ?: "Unknown error"}"
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
-    // UI (same as before with updated Button onClick)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -100,24 +34,14 @@ fun RegisterScreen(
     ) {
         Text(text = "Register", fontSize = 24.sp, fontWeight = FontWeight.Bold)
 
-        errorMessage?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        }
-
         Spacer(modifier = Modifier.height(20.dp))
-
         TextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp)) // Add spacing between fields
 
         TextField(
             value = password,
@@ -126,7 +50,6 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = PasswordVisualTransformation()
         )
-
         Spacer(modifier = Modifier.height(8.dp))
 
         TextField(
@@ -135,7 +58,6 @@ fun RegisterScreen(
             label = { Text("First Name") },
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(8.dp))
 
         TextField(
@@ -144,39 +66,67 @@ fun RegisterScreen(
             label = { Text("Surname") },
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Role Selection
-        roles.forEach { role ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = selectedRole == role,
-                    onClick = { selectedRole = role }
-                )
-                Text(text = role, modifier = Modifier.padding(start = 8.dp))
-            }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // Register Button
         Button(
-            onClick = { registerUser() },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            onClick = {
+                if (email.isNotBlank() && password.isNotBlank() && firstname.isNotBlank() && surname.isNotBlank()) {
+                    onRegisterClick(email, password, firstname, surname )
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(color = Color.White)
-            } else {
-                Text("Register")
-            }
+            Text(text = "Register")
         }
 
+        // Go to Login
         TextButton(onClick = { navController.navigate("login") }) {
             Text("Already have an account? Log in")
         }
     }
+}
+fun registerUser(
+    email: String,
+    password: String,
+    firstname: String,
+    surname: String,
+
+    navController: NavController
+) {
+    Log.d("Register", "registerUser() called") // ADD THIS
+
+    val auth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
+
+    auth.createUserWithEmailAndPassword(email, password)
+        .addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                Log.d("Register", "User created successfully") // ADD THIS
+
+                val userId = auth.currentUser?.uid
+                if (userId != null) {
+                    val user = mapOf(
+                        "firstname" to firstname,
+                        "surname" to surname,
+                        "email" to email,
+                        "uid" to userId
+                    )
+
+                    db.collection("users").document(userId).set(user)
+                        .addOnSuccessListener {
+                            Log.d("Register", "User data saved to Firestore") // ADD THIS
+                            navController.navigate("login") {
+                                popUpTo("register") { inclusive = true }
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("Register", "Error saving user: ${e.message}")
+                        }
+                }
+            } else {
+                Log.e("Register", "Registration Failed: ${task.exception?.message}")
+            }
+        }
 }

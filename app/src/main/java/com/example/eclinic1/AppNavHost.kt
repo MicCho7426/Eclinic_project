@@ -1,4 +1,4 @@
-package com.example.eclinic
+package com.example.eclinic1
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
@@ -11,14 +11,23 @@ import com.example.eclinic1.admin.AdminActivity
 import com.example.eclinic1.doctor.DoctorHomeScreen
 import com.example.eclinic1.patient.PatientHomeScreen
 import com.example.eclinic1.patient.PatientMainScreen
+import com.example.eclinic1.admin.UserListScreen
+
+
 
 @Composable
 fun AppNavHost(navController: NavHostController, startDestination: String) {
     NavHost(navController = navController, startDestination = startDestination) {
+        composable("splash") { SplashScreen(navController) }
         composable("login") { LoginScreen(navController) }
-        composable("register") { RegisterScreen(navController) }
         composable("adminHome") { AdminActivity(navController) }
         composable("doctorHome") { DoctorHomeScreen(navController) }
         composable("patientHome") { PatientMainScreen(navController) }
+        composable("register") {
+            RegisterScreen(navController) { email, password, firstname, surname ->
+                registerUser(email, password, firstname, surname,navController)
+            }
+        }
+        composable("admin") { UserListScreen(navController) }
     }
 }

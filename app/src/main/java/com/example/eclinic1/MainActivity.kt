@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.navigation.compose.rememberNavController
-import com.example.eclinic.AppNavHost
+import com.example.eclinic1.AppNavHost
 import com.example.eclinic1.ui.theme.EclinicTheme
 
 class MainActivity : ComponentActivity() {

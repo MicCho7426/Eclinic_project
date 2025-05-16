@@ -1,4 +1,4 @@
-package com.example.eclinic
+package com.example.eclinic1
 
 import org.junit.Test
 

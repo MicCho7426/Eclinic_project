@@ -60,6 +60,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")  // ViewModel dla Compose
     implementation(libs.androidx.activity.compose.v160)  // Zależności Activity dla Compose
     implementation("androidx.compose.runtime:runtime-livedata:1.7.8")  // Obsługa LiveData w Compose
+    implementation("androidx.compose.material:material-icons-extended")
+
     implementation ("androidx.compose.material:material-icons-extended")
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.31.5-beta")
     implementation ("androidx.browser:browser:1.5.0")

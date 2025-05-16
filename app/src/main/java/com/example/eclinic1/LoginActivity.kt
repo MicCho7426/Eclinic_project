@@ -25,11 +25,11 @@ class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val navController = rememberNavController() // Ensure correct NavController initialization
+            val navController = rememberNavController()
             AppNavHost(
                 navController,
                 startDestination = "login"
-            ) // Pass it to the AppNavHost
+            )
         }
     }
 }
@@ -49,7 +49,6 @@ fun LoginScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = "Login", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-
         Spacer(modifier = Modifier.height(20.dp))
 
         // Email Input
@@ -129,11 +128,8 @@ fun LoginScreen(navController: NavController) {
             Text("Login")
         }
 
-
-
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Register Button
         TextButton(
             onClick = { navController.navigate("register") }
         ) {
@@ -141,10 +137,3 @@ fun LoginScreen(navController: NavController) {
         }
     }
 }
-
-
-
-
-
-
-

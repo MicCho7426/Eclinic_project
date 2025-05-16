@@ -5,15 +5,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +29,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
+import java.util.UUID
 
 @Composable
 fun PatientDataScreen(navController: NavController) {
@@ -101,11 +98,11 @@ fun PatientDataScreen(navController: NavController) {
 // Show selected file details if a file is chosen
         selectedFileUri?.let { uri ->
             Text("Selected file: ${uri.lastPathSegment}")
-
             Button(onClick = { selectedFileUri = null }) {
                 Text("Remove File")
             }
         }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
@@ -138,6 +135,7 @@ fun PatientDataScreen(navController: NavController) {
         }
     }
 }
+
 private fun uploadFileToFirebase(uri: Uri, userId: String, context: Context, db: FirebaseFirestore) {
     val storageRef = FirebaseStorage.getInstance().reference
     val fileRef = storageRef.child("patient_files/$userId/${uri.lastPathSegment}")

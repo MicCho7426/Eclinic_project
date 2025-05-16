@@ -14,6 +14,7 @@ import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     navController: NavController,
@@ -73,7 +74,7 @@ fun RegisterScreen(
         Button(
             onClick = {
                 if (email.isNotBlank() && password.isNotBlank() && firstname.isNotBlank() && surname.isNotBlank()) {
-                    onRegisterClick(email, password, firstname, surname )
+                    onRegisterClick(email, password, firstname, surname)
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -95,7 +96,7 @@ fun registerUser(
 
     navController: NavController
 ) {
-    Log.d("Register", "registerUser() called") // ADD THIS
+    Log.d("Register", "registerUser() called")
 
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
@@ -103,7 +104,7 @@ fun registerUser(
     auth.createUserWithEmailAndPassword(email, password)
         .addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                Log.d("Register", "User created successfully") // ADD THIS
+                Log.d("Register", "User created successfully")
 
                 val userId = auth.currentUser?.uid
                 if (userId != null) {
@@ -111,12 +112,13 @@ fun registerUser(
                         "firstname" to firstname,
                         "surname" to surname,
                         "email" to email,
-                        "uid" to userId
+                        "uid" to userId,
+                        "role" to "patient" // domyślna rola przypisana przy rejestracji
                     )
 
                     db.collection("users").document(userId).set(user)
                         .addOnSuccessListener {
-                            Log.d("Register", "User data saved to Firestore") // ADD THIS
+                            Log.d("Register", "User data saved to Firestore")
                             navController.navigate("login") {
                                 popUpTo("register") { inclusive = true }
                             }

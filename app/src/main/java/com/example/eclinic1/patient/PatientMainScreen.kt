@@ -16,6 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.eclinic1.R
 import com.example.eclinic1.SearchScreen
+import com.example.eclinic1.chat.ChatScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -24,7 +25,8 @@ fun PatientMainScreen(navController: NavController) {
     val items = listOf(
         PatientNavItem.Home,
         PatientNavItem.Search,
-        PatientNavItem.Profile
+        PatientNavItem.Profile,
+        PatientNavItem.Chat
     )
 
     Scaffold(
@@ -66,6 +68,7 @@ fun PatientNavHost(
             }
         }
         composable(PatientNavItem.Search.route) { SearchScreen() }
+        composable(PatientNavItem.Chat.route) { ChatScreen(navController) }
         composable(PatientNavItem.Profile.route) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -122,4 +125,5 @@ sealed class PatientNavItem(
     object Home : PatientNavItem("patient_home", "Home", R.drawable.ic_home)
     object Search : PatientNavItem("patient_search", "Search", R.drawable.ic_search)
     object Profile : PatientNavItem("patient_profile", "Profile", R.drawable.ic_profile)
+    object Chat : PatientNavItem("chat", "Chat", R.drawable.ic_chat)
 }

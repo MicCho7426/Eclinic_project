@@ -8,12 +8,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.eclinic1.BookAppointmentScreen
 import com.example.eclinic1.R
 import com.example.eclinic1.SearchScreen
 import com.example.eclinic1.chat.ChatScreen
@@ -62,11 +64,18 @@ fun PatientNavHost(
         ) { backStackEntry ->
             val userId = FirebaseAuth.getInstance().currentUser?.uid
             if (userId != null) {
-                PatientHomeScreen(navController)
+                PatientHomeScreen(
+                    patientNavController = navController,
+                    parentNavController = parentNavController,
+                    navController = navController,
+                    viewModel = viewModel()
+                )
             } else {
                 // Handle not logged in case
             }
         }
+        composable("bookAppointment") {
+            BookAppointmentScreen(navController = navController)}
         composable(PatientNavItem.Search.route) { SearchScreen() }
         composable(PatientNavItem.Chat.route) { ChatScreen(navController) }
         composable(PatientNavItem.Profile.route) {

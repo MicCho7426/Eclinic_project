@@ -3,6 +3,7 @@ package com.example.eclinic1.patient
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.example.eclinic1.Appointment
 import com.example.eclinic1.R
@@ -59,7 +61,9 @@ import com.google.firebase.auth.FirebaseAuth
 @Composable
 fun PatientHomeScreen(
     navController: NavHostController,
-    viewModel: PatientHomeViewModel = viewModel()
+    viewModel: PatientHomeViewModel = viewModel(),
+    patientNavController: NavHostController,
+    parentNavController: NavController
 ) {
     val context = LocalContext.current
     val userData by viewModel.userData.collectAsState()
@@ -96,10 +100,12 @@ fun PatientHomeScreen(
                 appointments = appointments,
                 patientData = patientData,
                 navController = navController,
-                onFileClick = { url -> openFile(context, url) }
+                onFileClick = { url -> openFile(context, url) },
+                patientNavController
             )
         }
     }
+
 }
 
 @Composable
@@ -118,7 +124,9 @@ private fun PatientContent(
     appointments: List<Appointment>,
     patientData: PatientData?,
     navController: NavHostController,
-    onFileClick: (String) -> Unit
+    onFileClick: (String) -> Unit,
+    patientNavController: NavHostController
+
 ) {
     Column(
         modifier = modifier
@@ -138,9 +146,14 @@ private fun PatientContent(
             )
             Spacer(modifier = Modifier.height(24.dp))
         }
-
-        // Quick Actions
-        QuickActionsSection(navController)
+        Button(
+            onClick = {
+                patientNavController.navigate("bookAppointment") {
+                }
+            }
+        ) {
+            Text("Book Appointment")
+        }
     }
 }
 
@@ -271,33 +284,6 @@ private fun openFile(context: Context, url: String) {
     }
 }
 
-@Composable
-private fun QuickActionsSection(navController: NavHostController) {
-    Column {
-        Text(
-            text = "Quick Actions",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            ActionButton(
-                icon = Icons.Default.Upload,
-                label = "Upload",
-                onClick = { /* Handle upload */ }
-            )
-
-            ActionButton(
-                icon = Icons.Default.VideoCall,
-                label = "Book Appointment",
-                onClick = { navController.navigate("bookAppointment") }
-            )
-        }
-    }
-}
 
 @Composable
 private fun ActionButton(

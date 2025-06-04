@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -30,64 +31,57 @@ class BookAppointmentViewModel : ViewModel() {
     val selectedDoctor: StateFlow<Pair<String, String>?> = _selectedDoctor
 
     private val _selectedDate = MutableStateFlow<Date?>(null)
-    val selectedDate: StateFlow<Date?> = _selectedDate
+    val selectedDate: StateFlow<Date?> = _selectedDate.asStateFlow()
 
-    // Firestore field value capitalization
     fun createAppointment(
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser == null) {
+            onFailure(Exception("User not logged in"))
+            return
+        }
+
+        val doctor = selectedDoctor.value ?: run {
+            onFailure(Exception("Please select a doctor"))
+            return
+        }
+
+        val date = selectedDate.value ?: run {
+            onFailure(Exception("Please select a date"))
+            return
+        }
+
         _isLoading.value = true
 
-        val currentUser = auth.currentUser
-        if (currentUser == null) {
-            _isLoading.value = false
-            onFailure(Exception("User not authenticated"))
-            return
-        }
-
-        val doctor = _selectedDoctor.value
-        val date = _selectedDate.value
-
-        if (doctor == null || date == null) {
-            _isLoading.value = false
-            onFailure(Exception("Please select doctor and date"))
-            return
-        }
-
-        //FieldValue capitalization
         val appointment = hashMapOf(
             "patientId" to currentUser.uid,
             "doctorId" to doctor.first,
             "doctorName" to doctor.second,
             "date" to date.formatDate(),
             "status" to "pending",
-            "createdAt" to FieldValue.serverTimestamp(), // Fixed capitalization
-            "updatedAt" to FieldValue.serverTimestamp()  // Fixed capitalization
+            "createdAt" to FieldValue.serverTimestamp(),
+            "updatedAt" to FieldValue.serverTimestamp()
         )
 
-        viewModelScope.launch {
-            try {
-                db.collection("appointments")
-                    .add(appointment)
-                    .addOnSuccessListener {
-                        _isLoading.value = false
-                        onSuccess()
-                    }
-                    .addOnFailureListener { e ->
-                        _isLoading.value = false
-                        onFailure(e)
-                    }
-            } catch (e: Exception) {
+        FirebaseFirestore.getInstance().collection("appointments")
+            .add(appointment)
+            .addOnSuccessListener {
+                _isLoading.value = false
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
                 _isLoading.value = false
                 onFailure(e)
             }
-        }
-        onSuccess()
     }
 
     fun selectDoctor(doctor: Pair<String, String>) {
         _selectedDoctor.value = doctor
+    }
+    fun updateSelectedDate(date: Date) {
+        _selectedDate.value = date
     }
 
     //Proper doctor list loading

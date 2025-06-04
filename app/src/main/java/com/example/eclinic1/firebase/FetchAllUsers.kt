@@ -19,7 +19,6 @@ class FetchAllUsers : FetchFirestoreName() {
                     val firstname = document.getString("firstname") ?: "Unknown"
                     val surname = document.getString("surname") ?: "Unknown"
                     val role = document.getString("role") ?: ""
-                    // Add more fields if needed later (e.g., DoctorId, Specialization)
                     usersNameList.add(SimpleUser(id, firstname, surname, role))
                 }
                 _allUsers.value = usersNameList
@@ -56,4 +55,5 @@ class FetchAllUsers : FetchFirestoreName() {
                 Log.e("FirestoreUpdateError", "Failed to update doctor fields: ${e.message}")
             }
     }
+
 }

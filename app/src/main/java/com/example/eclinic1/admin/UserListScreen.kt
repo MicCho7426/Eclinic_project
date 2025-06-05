@@ -1,5 +1,4 @@
 package com.example.eclinic1.admin
-
 import androidx.compose.foundation.Image
 import com.example.eclinic1.firebase.FetchAllUsers
 import androidx.compose.foundation.clickable
@@ -204,5 +203,6 @@ fun UserListScreen(
                     }
                 }
             }
-        })
+        }
+    )
 }

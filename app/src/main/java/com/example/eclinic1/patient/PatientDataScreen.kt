@@ -1,4 +1,4 @@
-//package com.example.eclinic.patient
+package com.example.eclinic1.patient//package com.example.eclinic.patient
 //
 //import android.content.Context
 //import android.net.Uri

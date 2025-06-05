@@ -14,6 +14,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.eclinic1.ProfileScreen
 import com.example.eclinic1.SearchScreen
+import com.example.eclinic1.patient.Calendar
 
 @Composable
 fun MainScreen(navController: NavHostController) {
@@ -30,6 +31,8 @@ fun MainScreen(navController: NavHostController) {
             composable("home") { HomeScreen() }
             composable("search") { SearchScreen() }
             composable("profile") { ProfileScreen(navController) }
+            composable("calendar"){ Calendar() }
+
         }
     }
 }

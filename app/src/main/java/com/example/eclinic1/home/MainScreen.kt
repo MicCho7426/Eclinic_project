@@ -14,7 +14,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.eclinic1.ProfileScreen
-import com.example.eclinic1.SearchScreen
+import com.example.eclinic1.patient.SearchScreen
 import com.example.eclinic1.chat.ChatScreen // ⬅️ dodany import
 
 @Composable

@@ -41,7 +41,6 @@ fun DoctorScheduleScreen(navController: NavController) {
     val dayLabels = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
     val times = remember { mutableStateMapOf<String, Pair<String, String>>() }
 
-    // Load existing schedule from Firestore on week change
     LaunchedEffect(weekStart) {
         times.clear()
         weekDates.forEach { date ->
@@ -56,7 +55,6 @@ fun DoctorScheduleScreen(navController: NavController) {
                         times[dateKey] = start to end
                     }
                 }
-
         }
     }
 
@@ -65,9 +63,7 @@ fun DoctorScheduleScreen(navController: NavController) {
     ) { padding ->
         LazyColumn(
             contentPadding = padding,
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxSize()
+            modifier = Modifier.padding(16.dp).fillMaxSize()
         ) {
             item {
                 Button(onClick = {
@@ -100,7 +96,6 @@ fun DoctorScheduleScreen(navController: NavController) {
 
             item {
                 Button(onClick = {
-                    val batch = db.batch()
                     times.forEach { (dateKey, pair) ->
                         val (start, end) = pair
                         if (start.isNotBlank() && end.isNotBlank()) {
@@ -108,6 +103,7 @@ fun DoctorScheduleScreen(navController: NavController) {
                             val collectionRef = db.collection("schedules").document(userId).collection(dateKey)
 
                             collectionRef.get().addOnSuccessListener { existing ->
+                                val batch = db.batch() // osobny batch w każdej iteracji
                                 existing.forEach { batch.delete(it.reference) }
 
                                 slots.forEach { (slotStart, slotEnd) ->
@@ -120,9 +116,9 @@ fun DoctorScheduleScreen(navController: NavController) {
                                 }
 
                                 batch.commit().addOnSuccessListener {
-                                    Toast.makeText(context, "Schedule saved!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Saved schedule for $dateKey", Toast.LENGTH_SHORT).show()
                                 }.addOnFailureListener {
-                                    Toast.makeText(context, "Error: ${it.message}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Error for $dateKey: ${it.message}", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }

@@ -28,7 +28,8 @@ fun PatientMainScreen(navController: NavController) {
         PatientNavItem.Home,
         PatientNavItem.Search,
         PatientNavItem.Profile,
-        PatientNavItem.Chat
+        PatientNavItem.Chat,
+        PatientNavItem.Calendar
     )
 
     Scaffold(
@@ -77,6 +78,8 @@ fun PatientNavHost(
         composable("bookAppointment") {
             BookAppointmentScreen(navController = navController)}
         composable(PatientNavItem.Search.route) { SearchScreen() }
+        composable(PatientNavItem.Calendar.route) {Calendar()}
+        composable("patientData") {PatientDataScreen(navController)}
         composable(PatientNavItem.Chat.route) { ChatScreen(navController) }
         composable(PatientNavItem.Profile.route) {
             Surface(
@@ -135,4 +138,5 @@ sealed class PatientNavItem(
     object Search : PatientNavItem("patient_search", "Search", R.drawable.ic_search)
     object Profile : PatientNavItem("patient_profile", "Profile", R.drawable.ic_profile)
     object Chat : PatientNavItem("chat", "Chat", R.drawable.ic_chat)
+    object Calendar: PatientNavItem("calender", "Calendar", R.drawable.calendar)
 }

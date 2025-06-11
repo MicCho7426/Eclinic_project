@@ -83,7 +83,7 @@ fun PatientHomeScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = userData?.let { "Welcome, ${it.firstName}" } ?: "Welcome",
+                        text = userData?.let { "Welcome, ${it.firstName}\uD83D\uDC4B" } ?: "Welcome",
                         color = Color.White
                     )
                 },

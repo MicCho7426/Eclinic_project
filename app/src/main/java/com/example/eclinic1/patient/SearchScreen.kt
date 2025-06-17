@@ -13,7 +13,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 val SPECIALIZATIONS = listOf(
@@ -40,15 +44,14 @@ fun SearchScreen() {
     val auth = FirebaseAuth.getInstance()
     val userId = auth.currentUser?.uid ?: return
 
+    val zoneId = ZoneId.of("Europe/Warsaw")
+    val nowZoned = ZonedDateTime.now(zoneId)
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    var selectedDate by remember { mutableStateOf(nowZoned.toLocalDate().format(formatter)) }
     var specialization by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
-    val calendar = Calendar.getInstance()
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    var selectedDate by remember { mutableStateOf(formatter.format(calendar.time)) }
     var availableSlots by remember { mutableStateOf(listOf<AppointmentSlot>()) }
     var confirmationSlot by remember { mutableStateOf<AppointmentSlot?>(null) }
-
-    val today = formatter.format(Date())
 
     fun fetch() {
         if (specialization.isNotBlank()) {
@@ -83,12 +86,11 @@ fun SearchScreen() {
 
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             Text("<", modifier = Modifier
-                .clickable(enabled = selectedDate > today) {
-                    calendar.time = formatter.parse(selectedDate)!!
-                    calendar.add(Calendar.DATE, -1)
-                    val newDate = formatter.format(calendar.time)
-                    if (newDate >= today) {
-                        selectedDate = newDate
+                .clickable {
+                    val current = LocalDate.parse(selectedDate, formatter)
+                    val previous = current.minusDays(1)
+                    if (!previous.isBefore(nowZoned.toLocalDate())) {
+                        selectedDate = previous.format(formatter)
                         fetch()
                     }
                 }
@@ -102,32 +104,29 @@ fun SearchScreen() {
                 modifier = Modifier
                     .weight(1f)
                     .clickable {
-                        val todayDate = Calendar.getInstance()
-                        val picker = DatePickerDialog(
+                        val todayCalendar = Calendar.getInstance()
+                        DatePickerDialog(
                             context,
                             { _, y, m, d ->
-                                val picked = Calendar.getInstance()
-                                picked.set(y, m, d)
-                                val newDate = formatter.format(picked.time)
-                                if (newDate >= today) {
-                                    selectedDate = newDate
+                                val picked = LocalDate.of(y, m + 1, d)
+                                if (!picked.isBefore(nowZoned.toLocalDate())) {
+                                    selectedDate = picked.format(formatter)
                                     fetch()
                                 }
                             },
-                            calendar.get(Calendar.YEAR),
-                            calendar.get(Calendar.MONTH),
-                            calendar.get(Calendar.DAY_OF_MONTH)
-                        )
-                        picker.datePicker.minDate = todayDate.timeInMillis
-                        picker.show()
+                            nowZoned.year,
+                            nowZoned.monthValue - 1,
+                            nowZoned.dayOfMonth
+                        ).apply {
+                            datePicker.minDate = Date().time
+                        }.show()
                     }
             )
 
             Text(">", modifier = Modifier
                 .clickable {
-                    calendar.time = formatter.parse(selectedDate)!!
-                    calendar.add(Calendar.DATE, 1)
-                    selectedDate = formatter.format(calendar.time)
+                    val current = LocalDate.parse(selectedDate, formatter)
+                    selectedDate = current.plusDays(1).format(formatter)
                     fetch()
                 }
                 .padding(8.dp))
@@ -192,17 +191,17 @@ fun fetchAvailableAppointments(
     onResult: (List<AppointmentSlot>) -> Unit
 ) {
     val db = FirebaseFirestore.getInstance()
-    val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    val now = Calendar.getInstance().time
-    val currentDateString = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+    val zoneId = ZoneId.of("Europe/Warsaw")
+    val now = ZonedDateTime.now(zoneId)
+    val formatterFull = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
     db.collection("users")
         .whereEqualTo("role", "doctor")
         .get()
         .addOnSuccessListener { doctorDocs ->
             val matchingDoctors = doctorDocs.filter {
-                val specializations = it["Specialization"] as? List<*>
-                specializations?.contains(specialization) == true
+                val spec = it["Specialization"] as? List<*>
+                spec?.contains(specialization) == true
             }
 
             if (matchingDoctors.isEmpty()) {
@@ -211,7 +210,7 @@ fun fetchAvailableAppointments(
             }
 
             val result = mutableListOf<AppointmentSlot>()
-            var completed = 0
+            var done = 0
 
             for (doc in matchingDoctors) {
                 val doctorId = doc.id
@@ -224,8 +223,10 @@ fun fetchAvailableAppointments(
                     .addOnSuccessListener { slots ->
                         for (slot in slots) {
                             val startTime = slot["startTime"] as String
-                            val slotTime = formatter.parse("$date $startTime")
-                            if (slotTime != null && (date > currentDateString || slotTime.after(now))) {
+                            val dateTime = LocalDateTime.parse("$date $startTime", formatterFull)
+                            val zonedSlot = dateTime.atZone(zoneId)
+
+                            if (zonedSlot.isAfter(now)) {
                                 result.add(
                                     AppointmentSlot(
                                         doctorId = doctorId,
@@ -239,8 +240,8 @@ fun fetchAvailableAppointments(
                                 )
                             }
                         }
-                        completed++
-                        if (completed == matchingDoctors.size) {
+                        done++
+                        if (done == matchingDoctors.size) {
                             result.sortWith(compareBy({ it.date }, { it.startTime }))
                             onResult(result)
                         }

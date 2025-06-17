@@ -36,11 +36,20 @@ fun UserListScreen(
     var selectedRole by remember { mutableStateOf("All") }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
+
+    fun getDisplayRole(role: String): String {
+        return when (role.lowercase()) {
+            "all" -> "All"
+            "admin" -> "Admin"
+            "doctor" -> "Doctor"
+            "patient" -> "Patient"
+            else -> role
+        }
+    }
+
     val filteredUsers = when (selectedRole) {
-        "admin" -> users.filter { it.role == "admin" }
-        "doctor" -> users.filter { it.role == "doctor" }
-        "patient" -> users.filter { it.role == "patient" }
-        else -> users
+        "All"-> users
+        else -> users.filter {  it.role.equals(selectedRole, ignoreCase = true) }
     }
     LaunchedEffect(Unit) {
         viewModel.fetchUserData()
@@ -105,9 +114,9 @@ fun UserListScreen(
                             onDismissRequest = { dropdownExpanded = false }
                         ) {
                             listOf("All", "admin", "doctor", "patient").forEach { role ->
-                                DropdownMenuItem(text= { Text(role.replaceFirstChar { it.uppercase() }) },
+                                DropdownMenuItem(text= { Text(role.replaceFirstChar { it.lowercase() }) },
                                     onClick = {
-                                        selectedRole = role
+                                        selectedRole=if (role == "All") "All" else role.lowercase()
                                         dropdownExpanded = false
                                     }
                             )
@@ -123,7 +132,7 @@ fun UserListScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(filteredUsers) { user ->
-                        var role by remember { mutableStateOf(user.role) }
+                        val currentUserRole by viewModel.getUserRole(user.uid).collectAsState(initial = user.role)
                         var expanded by remember { mutableStateOf(false) }
                         var showDialog by remember { mutableStateOf(false) }
                         Card(
@@ -145,7 +154,7 @@ fun UserListScreen(
                                 ) {
                                     Box {
                                         Button(onClick = { expanded = true }) {
-                                            Text(role)
+                                            Text(getDisplayRole(selectedRole))
                                         }
 
                                         DropdownMenu(
@@ -154,14 +163,13 @@ fun UserListScreen(
                                         ) {
                                             Types.values().forEach { userType ->
                                                 DropdownMenuItem(
-                                                    text = { Text(userType.type) },
+                                                    text = { Text(getDisplayRole(userType.type)) },
                                                     onClick = {
-                                                        role = userType.name
-                                                        expanded = false
                                                         viewModel.updateUserRole(
                                                             user.uid,
                                                             userType.name
                                                         )
+                                                        expanded=false
                                                     }
                                                 )
                                             }
@@ -186,7 +194,7 @@ fun UserListScreen(
                                         text = { Text("Are you sure you want to delete this account?") },
                                         confirmButton = {
                                             TextButton(onClick = {
-                                                FirebaseAuth.getInstance().currentUser?.delete()
+                                                viewModel.deleteUser(uid = user.uid)
                                                 showDialog = false
                                             }) {
                                                 Text("Yes")

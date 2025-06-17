@@ -127,6 +127,7 @@ fun TimeGrid(appointments: List<Appointment>, modifier: Modifier = Modifier) {//
         modifier = modifier.fillMaxWidth()
     ) {
         items(hours.size) { hour ->
+            val hour = hours[hour]
             TimeSlot(
                 hour = hour,
                 appointments = appointmentsByHour[hour]?: emptyList(),

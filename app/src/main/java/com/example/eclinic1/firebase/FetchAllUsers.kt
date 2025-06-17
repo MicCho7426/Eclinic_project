@@ -2,8 +2,13 @@ package com.example.eclinic1.firebase
 
 import android.util.Log
 import com.example.eclinic1.admin.SimpleUser
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.snapshots
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 
 class FetchAllUsers : FetchFirestoreName() {
 
@@ -40,6 +45,33 @@ class FetchAllUsers : FetchFirestoreName() {
             .addOnFailureListener{ e ->
                 Log.e("FirestoreUpdateError","Failed to update")
             }
+    }
+    fun deleteUser(uid: String){
+        FirebaseAuth.getInstance().currentUser?.let { currentUser ->
+            if (currentUser.uid == uid) {
+                currentUser.delete()
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                        }
+                    }
+            }
+        }
+
+
+        FirebaseFirestore.getInstance().collection("users").document(uid).delete()
+            .addOnSuccessListener {
+
+            }
+            .addOnFailureListener {
+
+            }
+    }
+
+    fun getUserRole(uid: String): Flow<String?> {
+        return db.collection("users")
+            .document(uid)
+            .snapshots()
+            .map { it.getString("role") }
     }
 
 }

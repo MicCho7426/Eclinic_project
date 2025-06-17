@@ -87,7 +87,8 @@ dependencies {
     // Other dependencies
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.navigation.compose)  // Bill of Materials dla Compose
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.foundation.android)  // Bill of Materials dla Compose
 
     // Test dependencies
     testImplementation(libs.junit)

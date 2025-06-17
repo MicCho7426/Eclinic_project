@@ -56,6 +56,7 @@ fun DoctorNavHost(
     ) {
         composable(DoctorNavItem.Home.route) { DoctorHomeContent() }
         composable(DoctorNavItem.Search.route) { DoctorSearchScreen() }
+        composable("doctorSchedule") {DoctorScheduleScreen(navController)}
         composable(DoctorNavItem.Profile.route) {
             Surface(
                 modifier = Modifier.fillMaxSize(),

@@ -17,8 +17,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.eclinic1.BookAppointmentScreen
 import com.example.eclinic1.R
-import com.example.eclinic1.SearchScreen
+import com.example.eclinic1.chat.ChatDetailScreen
 import com.example.eclinic1.chat.ChatScreen
+import com.example.eclinic1.chat.CreateChatDoctorScreen
+import com.example.eclinic1.chat.CreateChatPatientScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -80,7 +82,7 @@ fun PatientNavHost(
         composable(PatientNavItem.Search.route) { SearchScreen() }
         composable(PatientNavItem.Calendar.route) {Calendar()}
         composable("patientData") {PatientDataScreen(navController)}
-        composable(PatientNavItem.Chat.route) { ChatScreen(navController) }
+        composable("chat") { ChatScreen(navController) }
         composable(PatientNavItem.Profile.route) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -99,6 +101,14 @@ fun PatientNavHost(
                     }
                 )
             }
+        }
+        composable("createChatPatient") { CreateChatPatientScreen(navController) }
+        composable("createChatDoctor") { CreateChatDoctorScreen(navController) }
+
+        // Chat detail with chatId
+        composable("chatDetail/{chatId}") { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            ChatDetailScreen(chatId = chatId, navController = navController)
         }
     }
 }

@@ -15,6 +15,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.eclinic1.R
+import com.example.eclinic1.chat.ChatDetailScreen
+import com.example.eclinic1.chat.ChatScreen
+import com.example.eclinic1.chat.CreateChatDoctorScreen
+import com.example.eclinic1.chat.CreateChatPatientScreen
+import com.example.eclinic1.patient.Calendar
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -23,7 +28,9 @@ fun DoctorHomeScreen(navController: NavController) {
     val items = listOf(
         DoctorNavItem.Home,
         DoctorNavItem.Search,
-        DoctorNavItem.Profile
+        DoctorNavItem.Profile,
+        DoctorNavItem.Chat,
+        DoctorNavItem.Calendar
     )
 
     Scaffold(
@@ -56,6 +63,9 @@ fun DoctorNavHost(
     ) {
         composable(DoctorNavItem.Home.route) { DoctorHomeContent() }
         composable(DoctorNavItem.Search.route) { DoctorSearchScreen() }
+        composable(DoctorNavItem.Chat.route){ ChatScreen(navController) }
+        composable(DoctorNavItem.Calendar.route){ Calendar() }
+        composable("doctorSchedule") {DoctorScheduleScreen(navController)}
         composable(DoctorNavItem.Profile.route) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -75,6 +85,12 @@ fun DoctorNavHost(
                 )
             }
         }
+        composable("chatDetail/{chatId}") { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            ChatDetailScreen(chatId = chatId, navController = navController)
+        }
+        composable("createChatPatient") { CreateChatPatientScreen(navController) }
+        composable("createChatDoctor") { CreateChatDoctorScreen(navController) }
     }
 }
 
@@ -112,4 +128,6 @@ sealed class DoctorNavItem(
     object Home : DoctorNavItem("doctor_home", "Home", R.drawable.ic_home)
     object Search : DoctorNavItem("doctor_search", "Search", R.drawable.ic_search)
     object Profile : DoctorNavItem("doctor_profile", "Profile", R.drawable.ic_profile)
+    object Chat : DoctorNavItem("chat", "Chat", R.drawable.ic_chat)
+    object Calendar : DoctorNavItem("calendar", "Calendar", R.drawable.calendar)
 }

@@ -12,6 +12,11 @@ import com.example.eclinic1.admin.SchedulesScreen
 import com.example.eclinic1.doctor.DoctorHomeScreen
 import com.example.eclinic1.patient.PatientMainScreen
 import com.example.eclinic1.admin.UserListScreen
+import com.example.eclinic1.chat.ChatDetailScreen
+import com.example.eclinic1.chat.ChatScreen
+import com.example.eclinic1.chat.CreateChatDoctorScreen
+import com.example.eclinic1.chat.CreateChatPatientScreen
+import com.example.eclinic1.doctor.DoctorScheduleScreen
 
 
 @RequiresApi(Build.VERSION_CODES.O)

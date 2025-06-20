@@ -121,12 +121,16 @@ fun DateItem(
 @Composable
 fun TimeGrid(appointments: List<Appointment>, modifier: Modifier = Modifier) {//baza danych
     val hours = (7..19).toList() // Godziny przyjęć np. 7:00-19:00
-    val appointmentsByHour = appointments.groupBy { it.date.toDate().hours }
+    val appointmentsByHour = appointments
+        .filter { it.date.toDate().hours in hours }
+        .groupBy {
+        it.date.toDate().hours }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth()
     ) {
         items(hours.size) { hour ->
+            val hour = hours[hour]
             TimeSlot(
                 hour = hour,
                 appointments = appointmentsByHour[hour]?: emptyList(),
@@ -138,6 +142,8 @@ fun TimeGrid(appointments: List<Appointment>, modifier: Modifier = Modifier) {//
 }
 @Composable
 fun TimeSlot(hour: Int, appointments: List<Appointment>, modifier: Modifier) {
+    val hours = (7..19).toList()
+    val hour = hours
     Row(
         modifier = modifier
             .height(60.dp)
@@ -145,7 +151,7 @@ fun TimeSlot(hour: Int, appointments: List<Appointment>, modifier: Modifier) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "$hour:00",
+            text = "${hour.forEach { hour-> println(hour) }}:00",
             modifier = Modifier.width(60.dp),
             style = MaterialTheme.typography.bodyMedium
         )

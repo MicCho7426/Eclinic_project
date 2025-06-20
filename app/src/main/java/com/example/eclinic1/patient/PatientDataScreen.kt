@@ -120,7 +120,7 @@ fun PatientDataScreen(navController: NavController) {
                     .set(patientData, SetOptions.merge())
                     .addOnSuccessListener {
                         Toast.makeText(context, "Data Saved!", Toast.LENGTH_SHORT).show()
-                        navController.navigate("profile")
+                        navController.navigate("patient_profile")
                     }
                     .addOnFailureListener {
                         Toast.makeText(context, "Error: ${it.message}", Toast.LENGTH_LONG).show()

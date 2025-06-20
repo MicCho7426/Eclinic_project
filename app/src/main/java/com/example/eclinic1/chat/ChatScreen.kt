@@ -10,6 +10,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.eclinic1.patient.PatientBottomNavigation
+import com.example.eclinic1.patient.PatientNavHost
+import com.example.eclinic1.patient.PatientNavItem
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -25,82 +32,93 @@ fun ChatScreen(navController: NavController) {
     val db = FirebaseFirestore.getInstance()
     val currentUser = auth.currentUser ?: return
     val currentUserUid = currentUser.uid
+    val chatNavController = rememberNavController()
 
     var userRole by remember { mutableStateOf("patient") }
     var userIdToQuery by remember { mutableStateOf(currentUserUid) }
     var chatList by remember { mutableStateOf<List<ChatEntry>>(emptyList()) }
 
+
     fun loadChats() {
-        fetchChats(db, userIdToQuery, userRole) { list ->
-            chatList = list
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        db.collection("users").document(currentUserUid).get()
-            .addOnSuccessListener { doc ->
-                userRole = doc.getString("role") ?: "patient"
-                userIdToQuery = if (userRole == "doctor") {
-                    doc.getString("DoctorId") ?: currentUserUid
-                } else {
-                    currentUserUid
-                }
-                loadChats()
+            fetchChats(db, userIdToQuery, userRole) { list ->
+                chatList = list
             }
-    }
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(
-            onClick = {
-                if (userRole == "patient") {
-                    navController.navigate("createChatPatient")
-                } else if (userRole == "doctor") {
-                    navController.navigate("createChatDoctor")
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Create Chat")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        LaunchedEffect(Unit) {
+            db.collection("users").document(currentUserUid).get()
+                .addOnSuccessListener { doc ->
+                    userRole = doc.getString("role") ?: "patient"
+                    userIdToQuery = if (userRole == "doctor") {
+                        doc.getString("DoctorId") ?: currentUserUid
+                    } else {
+                        currentUserUid
+                    }
+                    loadChats()
+                }
+        }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(chatList) { chat ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Chat ID: ${chat.chatId}", style = MaterialTheme.typography.labelSmall)
-                        Text("Doctor ID: ${chat.doctorId}", style = MaterialTheme.typography.bodySmall)
-                        Text("Patient ID: ${chat.patientId}", style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Button(
+                onClick = {
+                    if (userRole == "patient") {
+                        navController.navigate("createChatPatient")
+                    } else if (userRole == "doctor") {
+                        navController.navigate("createChatDoctor")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Create Chat")
+            }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            TextButton(onClick = {
-                                navController.navigate("chatDetail/${chat.chatId}")
-                            }) {
-                                Text("Open")
-                            }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(chatList) { chat ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "Chat ID: ${chat.chatId}",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                "Doctor ID: ${chat.doctorId}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                "Patient ID: ${chat.patientId}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
 
-                            TextButton(onClick = {
-                                deleteChat(db, chat.chatId) {
-                                    loadChats() // Refresh list after deletion
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                TextButton(onClick = {
+                                    navController.navigate("chatDetail/${chat.chatId}")
+                                }) {
+                                    Text("Open")
                                 }
-                            }) {
-                                Text("Delete", color = MaterialTheme.colorScheme.error)
+
+                                TextButton(onClick = {
+                                    deleteChat(db, chat.chatId) {
+                                        loadChats() // Refresh list after deletion
+                                    }
+                                }) {
+                                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
 }
 
 fun fetchChats(

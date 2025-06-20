@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +41,7 @@ fun ChatDetailScreen(chatId: String, navController: NavController) {
 
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var messageText by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -85,21 +87,34 @@ fun ChatDetailScreen(chatId: String, navController: NavController) {
             }
     }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    // Auto-scroll to bottom when new messages arrive
+    LaunchedEffect(messages) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
 
-        Button(onClick = { navController.popBackStack() }) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Back button at top
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
             Text("← Back to chats")
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
+        // Messages list - takes all available space
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            reverseLayout = true // Newest messages at bottom
         ) {
-            items(messages) { msg ->
+            items(messages.reversed()) { msg ->
                 val isUrl = msg.text.startsWith("http")
                 Surface(
                     color = if (msg.senderId == currentUserId)
@@ -138,62 +153,70 @@ fun ChatDetailScreen(chatId: String, navController: NavController) {
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(WindowInsets.navigationBars.asPaddingValues())
-                .padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-                    .shadow(elevation = 4.dp)
-                    .background(MaterialTheme.colorScheme.surface)
-            ) {
-                OutlinedTextField(
-                    value = messageText,
-                    onValueChange = { messageText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message") }
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Button(onClick = {
-                    if (messageText.isNotBlank()) {
-                        val message = ChatMessage(
-                            senderId = currentUserId,
-                            text = messageText,
-                            timestamp = Timestamp.now()
-                        )
-                        db.collection("chats").document(chatId)
-                            .collection("messages")
-                            .add(message)
-                            .addOnSuccessListener { messageText = "" }
-                            .addOnFailureListener {
-                                Toast.makeText(context, "Send failed", Toast.LENGTH_SHORT).show()
-                            }
-                    }
-                }) {
-                    Text("Send")
+        // Input row stays fixed at bottom
+        MessageInputRow(
+            messageText = messageText,
+            onMessageChange = { messageText = it },
+            onSend = {
+                if (messageText.isNotBlank()) {
+                    val message = ChatMessage(
+                        senderId = currentUserId,
+                        text = messageText,
+                        timestamp = Timestamp.now()
+                    )
+                    db.collection("chats").document(chatId)
+                        .collection("messages")
+                        .add(message)
+                        .addOnSuccessListener { messageText = "" }
+                        .addOnFailureListener {
+                            Toast.makeText(context, "Send failed", Toast.LENGTH_SHORT).show()
+                        }
                 }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Button(onClick = {
-                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                        type = "*/*"
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                    }
-                    filePickerLauncher.launch(Intent.createChooser(intent, "Select file"))
-                }) {
-                    Text("📎")
+            },
+            onAttachFile = {
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    type = "*/*"
+                    addCategory(Intent.CATEGORY_OPENABLE)
                 }
+                filePickerLauncher.launch(Intent.createChooser(intent, "Select file"))
             }
+        )
+    }
+}
+
+@Composable
+private fun MessageInputRow(
+    messageText: String,
+    onMessageChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onAttachFile: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(elevation = 4.dp)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(8.dp)
+    ) {
+        OutlinedTextField(
+            value = messageText,
+            onValueChange = onMessageChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Type a message") }
+        )
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Button(onClick = onSend) {
+            Text("Send")
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Button(onClick = onAttachFile) {
+            Text("📎")
         }
     }
 }

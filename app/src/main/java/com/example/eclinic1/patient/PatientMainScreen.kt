@@ -11,12 +11,15 @@ import androidx.compose.ui.res.vectorResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.eclinic1.BookAppointmentScreen
 import com.example.eclinic1.R
+import com.example.eclinic1.SearchScreen
 import com.example.eclinic1.chat.ChatDetailScreen
 import com.example.eclinic1.chat.ChatScreen
 import com.example.eclinic1.chat.CreateChatDoctorScreen
@@ -33,11 +36,15 @@ fun PatientMainScreen(navController: NavController) {
         PatientNavItem.Chat,
         PatientNavItem.Calendar
     )
+    val navBackStackEntry by patientNavController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         bottomBar = {
-            Box(modifier = Modifier) {
-                PatientBottomNavigation(patientNavController, items)
+            if (currentRoute != "chatDetail/{chatId}") {
+                Box(modifier = Modifier) {
+                    PatientBottomNavigation(patientNavController, items)
+                }
             }
         }
     ) { padding ->
@@ -55,8 +62,10 @@ fun PatientMainScreen(navController: NavController) {
 @Composable
 fun PatientNavHost(
     navController: NavHostController,
-    parentNavController: NavController, // Add parent nav controller
-    modifier: Modifier
+    parentNavController: NavController,
+    patientNavController: NavHostController = rememberNavController(),
+    modifier: Modifier,
+    navigationState: NavigationState = rememberNavigationState()
 ) {
     NavHost(
         navController = navController,
@@ -82,7 +91,25 @@ fun PatientNavHost(
         composable(PatientNavItem.Search.route) { SearchScreen() }
         composable(PatientNavItem.Calendar.route) {Calendar()}
         composable("patientData") {PatientDataScreen(navController)}
-        composable("chat") { ChatScreen(navController) }
+        composable(PatientNavItem.Chat.route) {ChatScreen(navController)}
+        composable(
+            route = "chatDetail/{chatId}",
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+
+            // Hide bottom bar when entering chat detail
+            LaunchedEffect(Unit) {
+                navigationState.showBottomBar = false
+            }
+            // Restore bottom bar when leaving
+            DisposableEffect(Unit) {
+                onDispose {
+                    navigationState.showBottomBar = true
+                }
+            }
+            ChatDetailScreen(chatId = chatId, navController = patientNavController)
+        }
         composable(PatientNavItem.Profile.route) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -106,10 +133,7 @@ fun PatientNavHost(
         composable("createChatDoctor") { CreateChatDoctorScreen(navController) }
 
         // Chat detail with chatId
-        composable("chatDetail/{chatId}") { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
-            ChatDetailScreen(chatId = chatId, navController = navController)
-        }
+
     }
 }
 
@@ -150,3 +174,9 @@ sealed class PatientNavItem(
     object Chat : PatientNavItem("chat", "Chat", R.drawable.ic_chat)
     object Calendar: PatientNavItem("calender", "Calendar", R.drawable.calendar)
 }
+class NavigationState {
+    var showBottomBar by mutableStateOf(true)
+}
+
+@Composable
+fun rememberNavigationState() = remember { NavigationState() }

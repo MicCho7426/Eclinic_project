@@ -1,4 +1,4 @@
-package com.example.eclinic1.patient
+package com.example.eclinic1
 
 import android.app.DatePickerDialog
 import android.widget.Toast
@@ -11,9 +11,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.text.SimpleDateFormat
+import java.time.*
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 val SPECIALIZATIONS = listOf(
@@ -40,24 +42,44 @@ fun SearchScreen() {
     val auth = FirebaseAuth.getInstance()
     val userId = auth.currentUser?.uid ?: return
 
+    val zoneId = ZoneId.of("Europe/Warsaw")
+    var currentServerTime by remember { mutableStateOf<ZonedDateTime?>(null) }
+
+    var selectedDate by remember { mutableStateOf("") }
     var specialization by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
-    val calendar = Calendar.getInstance()
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    var selectedDate by remember { mutableStateOf(formatter.format(calendar.time)) }
     var availableSlots by remember { mutableStateOf(listOf<AppointmentSlot>()) }
     var confirmationSlot by remember { mutableStateOf<AppointmentSlot?>(null) }
 
-    val today = formatter.format(Date())
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    val fullFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
-    fun fetch() {
-        if (specialization.isNotBlank()) {
-            fetchAvailableAppointments(specialization, selectedDate) {
-                availableSlots = it
+    // fetch current time once
+    LaunchedEffect(Unit) {
+        db.collection("serverTime").document("now").set(mapOf("timestamp" to Timestamp.now()))
+            .addOnSuccessListener {
+                db.collection("serverTime").document("now").get()
+                    .addOnSuccessListener { doc ->
+                        val timestamp = doc.getTimestamp("timestamp")?.toDate()
+                        if (timestamp != null) {
+                            val serverNow = timestamp.toInstant().atZone(zoneId)
+                            currentServerTime = serverNow
+                            selectedDate = serverNow.toLocalDate().format(formatter)
+                        }
+                    }
             }
-        }
     }
 
+    fun fetch() {
+        if (specialization.isNotBlank() && currentServerTime != null) {
+            fetchAvailableAppointments(
+                specialization,
+                selectedDate,
+                currentServerTime!!,
+                onResult = { availableSlots = it }
+            )
+        }
+    }
     Column(modifier = Modifier.padding(16.dp)) {
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
             OutlinedTextField(
@@ -83,12 +105,11 @@ fun SearchScreen() {
 
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             Text("<", modifier = Modifier
-                .clickable(enabled = selectedDate > today) {
-                    calendar.time = formatter.parse(selectedDate)!!
-                    calendar.add(Calendar.DATE, -1)
-                    val newDate = formatter.format(calendar.time)
-                    if (newDate >= today) {
-                        selectedDate = newDate
+                .clickable {
+                    val current = LocalDate.parse(selectedDate, formatter)
+                    val previous = current.minusDays(1)
+                    if (!previous.isBefore(currentServerTime?.toLocalDate())) {
+                        selectedDate = previous.format(formatter)
                         fetch()
                     }
                 }
@@ -102,32 +123,30 @@ fun SearchScreen() {
                 modifier = Modifier
                     .weight(1f)
                     .clickable {
-                        val todayDate = Calendar.getInstance()
-                        val picker = DatePickerDialog(
+                        val now = currentServerTime ?: return@clickable
+                        val today = now.toLocalDate()
+                        DatePickerDialog(
                             context,
                             { _, y, m, d ->
-                                val picked = Calendar.getInstance()
-                                picked.set(y, m, d)
-                                val newDate = formatter.format(picked.time)
-                                if (newDate >= today) {
-                                    selectedDate = newDate
+                                val picked = LocalDate.of(y, m + 1, d)
+                                if (!picked.isBefore(today)) {
+                                    selectedDate = picked.format(formatter)
                                     fetch()
                                 }
                             },
-                            calendar.get(Calendar.YEAR),
-                            calendar.get(Calendar.MONTH),
-                            calendar.get(Calendar.DAY_OF_MONTH)
-                        )
-                        picker.datePicker.minDate = todayDate.timeInMillis
-                        picker.show()
+                            now.year,
+                            now.monthValue - 1,
+                            now.dayOfMonth
+                        ).apply {
+                            datePicker.minDate = Date.from(today.atStartOfDay(zoneId).toInstant()).time
+                        }.show()
                     }
             )
 
             Text(">", modifier = Modifier
                 .clickable {
-                    calendar.time = formatter.parse(selectedDate)!!
-                    calendar.add(Calendar.DATE, 1)
-                    selectedDate = formatter.format(calendar.time)
+                    val current = LocalDate.parse(selectedDate, formatter)
+                    selectedDate = current.plusDays(1).format(formatter)
                     fetch()
                 }
                 .padding(8.dp))
@@ -189,20 +208,20 @@ fun SearchScreen() {
 fun fetchAvailableAppointments(
     specialization: String,
     date: String,
+    currentServerTime: ZonedDateTime,
     onResult: (List<AppointmentSlot>) -> Unit
 ) {
     val db = FirebaseFirestore.getInstance()
-    val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    val now = Calendar.getInstance().time
-    val currentDateString = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+    val zoneId = ZoneId.of("Europe/Warsaw")
 
     db.collection("users")
         .whereEqualTo("role", "doctor")
         .get()
         .addOnSuccessListener { doctorDocs ->
             val matchingDoctors = doctorDocs.filter {
-                val specializations = it["Specialization"] as? List<*>
-                specializations?.contains(specialization) == true
+                val specs = it["Specialization"] as? List<*>
+                specs?.contains(specialization) == true
             }
 
             if (matchingDoctors.isEmpty()) {
@@ -224,8 +243,10 @@ fun fetchAvailableAppointments(
                     .addOnSuccessListener { slots ->
                         for (slot in slots) {
                             val startTime = slot["startTime"] as String
-                            val slotTime = formatter.parse("$date $startTime")
-                            if (slotTime != null && (date > currentDateString || slotTime.after(now))) {
+                            val slotDateTime = LocalDateTime.parse("$date $startTime", formatter)
+                            val zonedSlot = slotDateTime.atZone(zoneId)
+
+                            if (zonedSlot.isAfter(currentServerTime)) {
                                 result.add(
                                     AppointmentSlot(
                                         doctorId = doctorId,

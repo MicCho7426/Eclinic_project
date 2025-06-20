@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.eclinic1.admin.AdminActivity
+import com.example.eclinic1.admin.SchedulesScreen
 import com.example.eclinic1.doctor.DoctorHomeScreen
 import com.example.eclinic1.patient.PatientMainScreen
 import com.example.eclinic1.admin.UserListScreen
@@ -24,12 +25,20 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
         composable("patientHome") { PatientMainScreen(navController) }
         composable("register") {
             RegisterScreen(navController) { email, password, firstname, surname ->
-                registerUser(email, password, firstname, surname,navController)
+                registerUser(email, password, firstname, surname, navController)
             }
         }
         composable("bookAppointment") {
             BookAppointmentScreen(navController)
         }
         composable("admin") { UserListScreen(navController) }
+        composable("schedules/{userId}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            SchedulesScreen(
+                userId = userId,
+                onBack = { navController.popBackStack() },
+                viewModel = viewModel()
+            )
+        }
     }
 }

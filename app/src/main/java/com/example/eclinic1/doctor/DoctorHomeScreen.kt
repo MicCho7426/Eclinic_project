@@ -61,7 +61,7 @@ fun DoctorNavHost(
         navController = navController,
         startDestination = DoctorNavItem.Home.route
     ) {
-        composable(DoctorNavItem.Home.route) { DoctorHomeContent() }
+        composable(DoctorNavItem.Home.route) { DoctorHomeContent(navController) }
         composable(DoctorNavItem.Search.route) { DoctorSearchScreen() }
         composable(DoctorNavItem.Chat.route){ ChatScreen(navController) }
         composable(DoctorNavItem.Calendar.route){ Calendar() }

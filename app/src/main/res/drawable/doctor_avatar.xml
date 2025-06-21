@@ -1,0 +1,47 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+
+    <!-- Head -->
+    <path
+        android:fillColor="#F2C9A1"
+        android:pathData="M32,8a12,12 0 1,1 0,24a12,12 0 0,1 0,-24" />
+
+    <!-- Hair -->
+    <path
+        android:fillColor="#2F2F2F"
+        android:pathData="M20,20a12,12 0 1,1 24,0l0,0a12,12 0 0,0 -24,0z" />
+
+    <!-- Eyes -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M26,18a2,2 0 1,1 -4,0a2,2 0 0,1 4,0z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M38,18a2,2 0 1,1 -4,0a2,2 0 0,1 4,0z" />
+
+    <!-- Neck -->
+    <path
+        android:fillColor="#F2C9A1"
+        android:pathData="M28,28h8v4h-8z" />
+
+    <!-- Coat (torso) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#CCCCCC"
+        android:strokeWidth="1"
+        android:pathData="M16,60c0,-20 32,-20 32,0z" />
+
+    <!-- Stethoscope -->
+    <path
+        android:strokeColor="#333333"
+        android:strokeWidth="1.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M28,32c-4,4 -4,12 0,16M36,32c4,4 4,12 0,16" />
+    <path
+        android:fillColor="#666666"
+        android:pathData="M32,48a3,3 0 1,1 -6e-7,0.00001z" />
+
+</vector>

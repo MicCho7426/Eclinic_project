@@ -5,7 +5,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -48,6 +52,8 @@ fun UserListScreen(
         "All" -> users
         else -> users.filter { it.role.equals(selectedRole, ignoreCase = true) }
     }
+    var showPushMessageDialog by remember { mutableStateOf(false) }
+    var pushMessageText by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.fetchUserData()
@@ -83,12 +89,16 @@ fun UserListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                fabExpanded = true
-
-            }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.Gray)
-            }
+            UserListFab(
+                fabExpanded = fabExpanded,
+                onFabExpandChange = { fabExpanded = it },
+                onCreateUserClick = {
+                    // np. navController.navigate("create")
+                },
+                onSendMessageClick = {
+                    showPushMessageDialog=true
+                }
+            )
         },
         content = { innerPadding ->
             Column(
@@ -160,8 +170,17 @@ fun UserListScreen(
                     }
                 }
             }
-        }
-    )
+            if (showPushMessageDialog) {
+                SendPushMessageDialog(
+                    users = users,
+                    onDismiss = { showPushMessageDialog = false },
+                    onSend = {recipientId, message ->
+                        pushMessageText = message
+                        showPushMessageDialog = false
+                    }
+                )
+            }
+        })
 }
 
 
@@ -350,93 +369,4 @@ private fun DeleteUserDialog(
             }
         }
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SchedulesScreen(
-    userId: String,
-    onBack: () -> Unit,
-    viewModel: FetchAllUsers = viewModel()
-) {
-    val schedules by viewModel.getSchedules(userId).collectAsState(initial = emptyList())
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = R.drawable.logo),
-                            contentDescription = "Logo",
-                            modifier = Modifier.size(50.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("E-Clinic", style = MaterialTheme.typography.titleLarge)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        if (schedules.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No booked schedules")
-            }
-        } else {
-            LazyColumn(modifier = Modifier.padding(padding)) {
-                items(schedules) { schedule ->
-                    ScheduleItem(
-                        schedule = schedule,
-                        onDelete = { viewModel.deleteSchedule(userId, schedule.id) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ScheduleItem(
-    schedule: Schedule,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        elevation = CardDefaults.cardElevation()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    schedule.date?.let {
-                        Text(
-                            "Date: ${SimpleDateFormat("yyyy-MM-dd").format(it)}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    Text("From: ${schedule.startTime}", style = MaterialTheme.typography.bodyMedium)
-                    Text("To: ${schedule.endTime}", style = MaterialTheme.typography.bodyMedium)
-                }
-
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
-                }
-            }
-        }
-    }
 }

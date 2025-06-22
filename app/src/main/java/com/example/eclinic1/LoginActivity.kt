@@ -1,10 +1,14 @@
 package com.example.eclinic1
 
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +23,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 
 class LoginActivity : ComponentActivity() {
 
@@ -41,6 +46,18 @@ fun LoginScreen(navController: NavController) {
     val emailState = remember { mutableStateOf("") }
     val passwordState = remember { mutableStateOf("") }
     val db = FirebaseFirestore.getInstance()
+    val activity = context as? ComponentActivity
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                Log.d("Permission", "Zgoda na powiadomienia udzielona.")
+            } else {
+                Log.d("Permission", "Zgoda na powiadomienia odrzucona.")
+            }
+        }
+    )
 
     Column(
         modifier = Modifier
@@ -51,7 +68,6 @@ fun LoginScreen(navController: NavController) {
         Text(text = "Login", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Email Input
         OutlinedTextField(
             value = emailState.value,
             onValueChange = { emailState.value = it },
@@ -60,7 +76,6 @@ fun LoginScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Password Input
         OutlinedTextField(
             value = passwordState.value,
             onValueChange = { passwordState.value = it },
@@ -70,58 +85,110 @@ fun LoginScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Login Button
         Button(
             onClick = {
                 auth.signInWithEmailAndPassword(emailState.value, passwordState.value)
                     .addOnSuccessListener {
                         val userId = auth.currentUser?.uid
+
                         if (userId != null) {
-                            db.collection("users").document(userId).get()
-                                .addOnSuccessListener { document ->
-                                    if (document.exists()) {
-                                        val role = document.getString("role") ?: "user"
-                                        Toast.makeText(context, "Zalogowano jako: $role", Toast.LENGTH_SHORT).show()
-                                        Log.d("Login", "User role: $role")
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                val sharedPreferences = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+                                val alreadyAsked = sharedPreferences.getBoolean("asked_notifications", false)
 
-                                        if (role == "patient") {
-                                            // Check if medical data exists
-                                            db.collection("patients").document(userId).get()
-                                                .addOnSuccessListener { patientDoc ->
-                                                    val hasMedicalData = patientDoc.exists()
+                                if (!alreadyAsked) {
+                                    permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                    sharedPreferences.edit().putBoolean("asked_notifications", true).apply()
+                                }
+                            }
 
 
+                            FirebaseMessaging.getInstance().token
+                                .addOnSuccessListener { token ->
+                                    db.collection("users").document(userId)
+                                        .update("fcm", token)
+                                        .addOnSuccessListener {
+                                            Log.d("FCM", "Token FCM zaktualizowany po logowaniu")
+                                        }
+                                        .addOnFailureListener {
+                                            Log.e("FCM", "Błąd aktualizacji tokena: ${it.message}")
+                                        }
 
-                                                    navController.navigate("patientHome") {
+
+                                    db.collection("users").document(userId).get()
+                                        .addOnSuccessListener { document ->
+                                            if (document.exists()) {
+                                                val role = document.getString("role") ?: "user"
+                                                Toast.makeText(
+                                                    context,
+                                                    "Zalogowano jako: $role",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                Log.d("Login", "Rola użytkownika: $role")
+
+                                                when (role) {
+                                                    "patient" -> {
+                                                        db.collection("patients").document(userId)
+                                                            .get()
+                                                            .addOnSuccessListener { patientDoc ->
+                                                                val hasMedicalData = patientDoc.exists()
+                                                                navController.navigate("patientHome") {
+                                                                    popUpTo("login") { inclusive = true }
+                                                                }
+                                                            }
+                                                            .addOnFailureListener {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Błąd sprawdzania danych medycznych",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                    }
+
+                                                    "admin" -> navController.navigate("admin") {
+                                                        popUpTo("login") { inclusive = true }
+                                                    }
+
+                                                    "doctor" -> navController.navigate("doctorHome") {
+                                                        popUpTo("login") { inclusive = true }
+                                                    }
+
+                                                    else -> navController.navigate("main") {
                                                         popUpTo("login") { inclusive = true }
                                                     }
                                                 }
-                                                .addOnFailureListener {
-                                                    Toast.makeText(context, "Error checking medical data", Toast.LENGTH_SHORT).show()
-                                                }
-                                        } else {
-                                            // Navigate for admin and doctor
-                                            val destination = when (role) {
-                                                "admin" -> "admin"
-                                                "doctor" -> "doctorHome"
-                                                else -> "main"
-                                            }
-                                            navController.navigate(destination) {
-                                                popUpTo("login") { inclusive = true }
+                                            } else {
+                                                Log.w("Login", "Dokument użytkownika nie istnieje")
+                                                Toast.makeText(
+                                                    context,
+                                                    "Nie znaleziono danych użytkownika",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         }
-                                    }
+                                        .addOnFailureListener {
+                                            Toast.makeText(
+                                                context,
+                                                "Błąd pobierania roli użytkownika",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                 }
-                                .addOnFailureListener {
-                                    Toast.makeText(context, "Error fetching user role", Toast.LENGTH_SHORT).show()
-                                }
-                        }else{
-                            Toast.makeText(context, "Brak danych użytkownika w Firestore", Toast.LENGTH_SHORT).show()
+
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Nie udało się pobrać UID użytkownika",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
-                        Log.w("Login", "Document doesn't exist for userId: $userId")
                     }
                     .addOnFailureListener {
-                        Toast.makeText(context, "Login Failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            "Logowanie nie powiodło się: ${it.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
             }
         ) {

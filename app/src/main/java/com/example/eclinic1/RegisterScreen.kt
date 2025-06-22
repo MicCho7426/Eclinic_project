@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,40 +94,46 @@ fun registerUser(
     password: String,
     firstname: String,
     surname: String,
-
     navController: NavController
 ) {
-    Log.d("Register", "registerUser() called")
-
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
 
     auth.createUserWithEmailAndPassword(email, password)
         .addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                Log.d("Register", "User created successfully")
+                val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
 
-                val userId = auth.currentUser?.uid
-                if (userId != null) {
-                    val user = mapOf(
-                        "firstname" to firstname,
-                        "surname" to surname,
-                        "email" to email,
-                        "uid" to userId,
-                        "role" to "patient" // domyślna rola przypisana przy rejestracji
-                    )
+                FirebaseMessaging.getInstance().token
+                    .addOnCompleteListener { tokenTask ->
+                        if (!tokenTask.isSuccessful) {
+                            Log.w("FCM", "Fetching FCM registration token failed", tokenTask.exception)
+                            return@addOnCompleteListener
+                        }
 
-                    db.collection("users").document(userId).set(user)
-                        .addOnSuccessListener {
-                            Log.d("Register", "User data saved to Firestore")
-                            navController.navigate("login") {
-                                popUpTo("register") { inclusive = true }
+                        val fcmToken = tokenTask.result
+
+                        val user = mapOf(
+                            "firstname" to firstname,
+                            "surname" to surname,
+                            "email" to email,
+                            "uid" to userId,
+                            "role" to "patient",
+                            "fcm" to fcmToken
+                        )
+
+                        db.collection("users").document(userId).set(user)
+                            .addOnSuccessListener {
+                                Log.d("Register", "User data saved to Firestore")
+                                navController.navigate("login") {
+                                    popUpTo("register") { inclusive = true }
+                                }
                             }
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("Register", "Error saving user: ${e.message}")
-                        }
-                }
+                            .addOnFailureListener { e ->
+                                Log.e("Register", "Error saving user: ${e.message}")
+                            }
+                    }
+
             } else {
                 Log.e("Register", "Registration Failed: ${task.exception?.message}")
             }

@@ -1,4 +1,5 @@
-import com.example.eclinic1.patient.Appointment
+package com.example.eclinic1.patient
+
 import java.time.LocalDate
 
 data class CalendarState(
@@ -6,5 +7,6 @@ data class CalendarState(
     val selectedDate: LocalDate = LocalDate.now(),
     val appointments: List<Appointment> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val userRole: String? = null
 )

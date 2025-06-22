@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import java.time.*
 import java.time.format.DateTimeFormatter
@@ -272,29 +273,39 @@ fun fetchAvailableAppointments(
 
 fun bookAppointment(slot: AppointmentSlot, patientId: String, context: android.content.Context) {
     val db = FirebaseFirestore.getInstance()
-    val meetingData = mapOf(
-        "doctorId" to slot.doctorId,
-        "doctorName" to slot.doctorName,
-        "patientId" to patientId,
-        "date" to slot.date,
-        "startTime" to slot.startTime,
-        "endTime" to slot.endTime,
-        "status" to "scheduled",
-        "note" to ""
-    )
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+    val dateTime = LocalDateTime.parse("${slot.date} ${slot.startTime}", formatter)
+    val timestamp = Timestamp(dateTime.toEpochSecond(ZoneOffset.UTC), 0)
 
-    db.collection("meetings")
-        .add(meetingData)
-        .addOnSuccessListener {
-            db.collection("schedules")
-                .document(slot.doctorId)
-                .collection(slot.date)
-                .document(slot.scheduleDocId)
-                .update("isBooked", true)
+    db.collection("users").document(patientId).get()
+        .addOnSuccessListener { patientDoc ->
+            val patientName = "${patientDoc["firstname"]} ${patientDoc["surname"]}"
 
-            Toast.makeText(context, "Appointment booked!", Toast.LENGTH_SHORT).show()
-        }
-        .addOnFailureListener {
-            Toast.makeText(context, "Error: ${it.message}", Toast.LENGTH_SHORT).show()
+            val meetingData = hashMapOf(
+                "doctorId" to slot.doctorId,
+                "doctorName" to slot.doctorName,
+                "patientId" to patientId,
+                "patientName" to patientName,
+                "date" to timestamp,
+                "startTime" to slot.startTime,
+                "endTime" to slot.endTime,
+                "status" to "scheduled",
+                "note" to "",
+                "createdAt" to FieldValue.serverTimestamp()
+            )
+
+            db.collection("meetings")
+                .add(meetingData)
+                .addOnSuccessListener {
+                    db.collection("schedules")
+                        .document(slot.doctorId)
+                        .collection(slot.date)
+                        .document(slot.scheduleDocId)
+                        .update("isBooked", true)
+                    Toast.makeText(context, "Appointment booked!", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener {
+                    Toast.makeText(context, "Error: ${it.message}", Toast.LENGTH_SHORT).show()
+                }
         }
 }

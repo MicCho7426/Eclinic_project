@@ -1,5 +1,6 @@
 package com.example.eclinic1.doctor
 
+import android.R.attr.data
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -27,8 +28,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.eclinic1.R
 import com.example.eclinic1.SearchScreen
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun DoctorHomeContent(navController: NavController) {
@@ -191,7 +196,9 @@ fun DoctorHomeContent(navController: NavController) {
                     items(appointments) { (meetingId, meetingData) ->
                         val patientName = meetingData["patientName"] as? String ?:
                         "Patient ${meetingData["patientId"]}"
-                        val date = meetingData["date"] as? String ?: "Unknown date"
+                        val timestamp = meetingData["date"] as? Timestamp ?: Timestamp.now()
+                        val date = SimpleDateFormat("yyyy-MM-dd ", Locale.getDefault())
+                            .format(timestamp.toDate())
                         val time = "${meetingData["startTime"]} - ${meetingData["endTime"]}"
                         val note = meetingData["note"] as? String ?: ""
 

@@ -12,6 +12,8 @@ import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
+import com.google.firebase.firestore.FieldValue
+
 
 class CalendarViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -44,12 +46,19 @@ class CalendarViewModel : ViewModel() {
     }
 
     private fun loadInitialDates() {
-        _state.value = _state.value.copy(
-            dates = (-15..15).map { offset ->
-                LocalDate.now().plusDays(offset.toLong())
-            }
-        )
+        viewModelScope.launch {
+            val today = getServerDate() ?: LocalDate.now()
+            _state.value = _state.value.copy(
+                dates = (0..30).map { offset ->
+                    today.plusDays(offset.toLong())
+                },
+                selectedDate = today
+            )
+            loadAppointmentsForDate(today)
+        }
     }
+
+
 
     fun selectDate(date: LocalDate) {
         _state.value = _state.value.copy(
@@ -119,4 +128,17 @@ class CalendarViewModel : ViewModel() {
     fun retry() {
         loadAppointmentsForDate(_state.value.selectedDate)
     }
+    private suspend fun getServerDate(): LocalDate? {
+        return try {
+            val serverRef = db.collection("serverTime").document("serverping")
+            serverRef.set(mapOf("timestamp" to FieldValue.serverTimestamp())).await()
+            val doc = serverRef.get().await()
+            val ts = doc.getTimestamp("timestamp")?.toDate()
+            ts?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalDate()
+        } catch (e: Exception) {
+            Log.e("CalendarVM", "Server time fetch failed", e)
+            null
+        }
+    }
+
 }

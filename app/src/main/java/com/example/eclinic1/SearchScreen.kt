@@ -18,6 +18,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.*
+import kotlinx.coroutines.tasks.await
+import android.util.Log
+
 
 val SPECIALIZATIONS = listOf(
     "Cardiology", "Dermatology", "Endocrinology", "Gastroenterology",
@@ -57,18 +60,19 @@ fun SearchScreen() {
 
     // fetch current time once
     LaunchedEffect(Unit) {
-        db.collection("serverTime").document("now").set(mapOf("timestamp" to Timestamp.now()))
-            .addOnSuccessListener {
-                db.collection("serverTime").document("now").get()
-                    .addOnSuccessListener { doc ->
-                        val timestamp = doc.getTimestamp("timestamp")?.toDate()
-                        if (timestamp != null) {
-                            val serverNow = timestamp.toInstant().atZone(zoneId)
-                            currentServerTime = serverNow
-                            selectedDate = serverNow.toLocalDate().format(formatter)
-                        }
-                    }
+        try {
+            val docRef = db.collection("serverTime").document("now")
+            docRef.set(mapOf("timestamp" to FieldValue.serverTimestamp())).await()
+            val snapshot = docRef.get().await()
+            val timestamp = snapshot.getTimestamp("timestamp")?.toDate()
+            if (timestamp != null) {
+                val serverNow = timestamp.toInstant().atZone(zoneId)
+                currentServerTime = serverNow
+                selectedDate = serverNow.toLocalDate().format(formatter)
             }
+        } catch (e: Exception) {
+            Log.e("SERVER_TIME", "Failed to get server time", e)
+        }
     }
 
     fun fetch() {

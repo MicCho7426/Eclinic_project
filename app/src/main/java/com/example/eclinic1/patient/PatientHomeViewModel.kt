@@ -1,5 +1,6 @@
 package com.example.eclinic1.patient
 
+import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.eclinic1.Appointment
@@ -62,7 +63,7 @@ data class UserData(
 
     fun loadAppointments(userId: String) {
         FirebaseFirestore.getInstance()
-            .collection("appointments")
+            .collection("meetings")
             .whereEqualTo("patientId", userId)
             .get()
             .addOnSuccessListener { result ->

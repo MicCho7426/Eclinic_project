@@ -91,6 +91,7 @@ fun PatientNavHost(
         composable(PatientNavItem.Search.route) { SearchScreen() }
         composable(PatientNavItem.Calendar.route) {Calendar()}
         composable("patientData") {PatientDataScreen(navController)}
+        composable("appointmentDetails") {  }
         composable(PatientNavItem.Chat.route) {ChatScreen(navController)}
         composable(
             route = "chatDetail/{chatId}",

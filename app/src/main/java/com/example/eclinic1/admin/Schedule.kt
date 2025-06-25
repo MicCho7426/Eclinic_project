@@ -7,5 +7,6 @@ data class Schedule(
         val isBooked: Boolean = false,
         val startTime: String = "",
         val endTime: String = "",
-        val date: Date? = null
+        val date: Date? = null,
+        val dateString: String = ""
 )

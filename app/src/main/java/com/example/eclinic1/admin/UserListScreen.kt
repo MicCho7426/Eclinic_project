@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -54,6 +55,8 @@ fun UserListScreen(
     }
     var showPushMessageDialog by remember { mutableStateOf(false) }
     var pushMessageText by remember { mutableStateOf("") }
+
+
 
     LaunchedEffect(Unit) {
         viewModel.fetchUserData()
@@ -100,6 +103,8 @@ fun UserListScreen(
                 }
             )
         },
+        containerColor = Color(0xff2373c8)
+,
         content = { innerPadding ->
             Column(
                 modifier = Modifier
@@ -108,7 +113,7 @@ fun UserListScreen(
                     .fillMaxSize()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Filter by:", style = MaterialTheme.typography.bodyLarge)
+                    Text("Filter by:", style = MaterialTheme.typography.bodyLarge, color = Color.White)
                     Spacer(Modifier.width(8.dp))
                     Box {
                         Button(onClick = { dropdownExpanded = true }) {
@@ -158,7 +163,9 @@ fun UserListScreen(
                             },
                             onDelete = { showDialog = true },
                             onViewSchedules = { navController.navigate("schedules/${user.uid}") },
+                            viewModel=viewModel,
                             navController = navController
+
                         )
 
                         if (showDialog) {
@@ -192,16 +199,27 @@ private fun UserCard(
     onRoleChange: (String) -> Unit,
     onDelete: () -> Unit,
     onViewSchedules: () -> Unit,
+    viewModel: FetchAllUsers,
     navController: NavHostController
 ) {
     var roleExpanded by remember { mutableStateOf(false) }
     var doctorDetailsExpanded by remember { mutableStateOf(false) }
     var doctorId by remember { mutableStateOf("") }
     var selectedSpecs by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showSaveButton by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 8.dp)) {
+    LaunchedEffect(user.uid) {
+        viewModel.getDoctorDetails(user.uid) { fetchedDoctorId, fetchedSpecs ->
+            doctorId = fetchedDoctorId
+            selectedSpecs = fetchedSpecs
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "${user.firstname} ${user.secondname}",
@@ -209,10 +227,10 @@ private fun UserCard(
             )
             Spacer(Modifier.height(8.dp))
 
-            // Wybór roli
             ExposedDropdownMenuBox(
                 expanded = roleExpanded,
-                onExpandedChange = { roleExpanded = it }) {
+                onExpandedChange = { roleExpanded = it }
+            ) {
                 TextField(
                     value = currentRole.replaceFirstChar { it.uppercase() },
                     onValueChange = {},
@@ -231,7 +249,7 @@ private fun UserCard(
                         DropdownMenuItem(
                             text = { Text(type.type.replaceFirstChar { it.uppercase() }) },
                             onClick = {
-                                onRoleChange(type.name)
+                                onRoleChange(type.name.lowercase())
                                 roleExpanded = false
                             }
                         )
@@ -239,10 +257,9 @@ private fun UserCard(
                 }
             }
 
-            // Szczegóły lekarza (jeśli rola to doctor)
-            if (currentRole == "doctor") {
+            if (currentRole.lowercase() == "doctor") {
                 Spacer(Modifier.height(12.dp))
-                // W UserCard:
+
                 Button(
                     onClick = { navController.navigate("schedules/${user.uid}") },
                     modifier = Modifier.fillMaxWidth()
@@ -250,30 +267,47 @@ private fun UserCard(
                     Text("View Schedules")
                 }
 
-
                 Button(
                     onClick = { doctorDetailsExpanded = !doctorDetailsExpanded },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Doctor Details")
                 }
-            }
-            if (doctorDetailsExpanded) {
-                DoctorDetailsForm(
-                    doctorId = doctorId,
-                    onDoctorIdChange = { doctorId = it },
-                    selectedSpecs = selectedSpecs,
-                    onSpecsChange = { selectedSpecs = it }
-                )
-            }
-        }
 
-        // Przycisk usuwania
-        IconButton(
-            onClick = onDelete,
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                if (doctorDetailsExpanded) {
+                    DoctorDetailsForm(
+                        doctorId = doctorId,
+                        onDoctorIdChange = {
+                            doctorId = it
+                            showSaveButton = true
+                        },
+                        selectedSpecs = selectedSpecs,
+                        onSpecsChange = {
+                            selectedSpecs = it
+                            showSaveButton = true
+                        }
+                    )
+
+                    if (showSaveButton) {
+                        Button(
+                            onClick = {
+                                viewModel.updateDoctorDetails(user.uid, doctorId, selectedSpecs)
+                                showSaveButton = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Save Changes")
+                        }
+                    }
+                }
+            }
+
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+            }
         }
     }
 }
@@ -347,7 +381,7 @@ fun DoctorDetailsForm(
 }
 
 @Composable
-private fun DeleteUserDialog(
+fun DeleteUserDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
@@ -370,3 +404,5 @@ private fun DeleteUserDialog(
         }
     )
 }
+
+

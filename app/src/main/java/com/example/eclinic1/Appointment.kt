@@ -1,4 +1,4 @@
-package com.example.eclinic1
+/*package com.example.eclinic1
 
 import com.google.firebase.Timestamp
 
@@ -14,3 +14,4 @@ data class Appointment(
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null
 )
+*/

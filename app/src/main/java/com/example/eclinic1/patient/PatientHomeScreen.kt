@@ -5,6 +5,11 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,9 +22,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -42,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -53,7 +61,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import com.example.eclinic1.Appointment
 import com.example.eclinic1.R
 import com.google.firebase.auth.FirebaseAuth
 
@@ -101,11 +108,10 @@ fun PatientHomeScreen(
                 patientData = patientData,
                 navController = navController,
                 onFileClick = { url -> openFile(context, url) },
-                patientNavController
+                patientNavController = patientNavController
             )
         }
     }
-
 }
 
 @Composable
@@ -179,11 +185,31 @@ private fun AppointmentsSection(
 
 @Composable
 private fun NoAppointmentsMessage() {
-    Text(
-        text = stringResource(R.string.no_appointments),
-        style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.padding(vertical = 16.dp)
-    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Event,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No upcoming appointments",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "You don't have any scheduled appointments",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
 }
 
 @Composable
@@ -195,11 +221,20 @@ private fun AppointmentList(
         modifier = Modifier.heightIn(max = 400.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(appointments) { appointment ->
-            AppointmentCard(
-                appointment = appointment,
-                onViewDetails = { navController.navigate("appointmentDetails/${appointment.id}") }
-            )
+        items(
+            items = appointments,
+            key = { it.id }
+        ) { appointment ->
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                AppointmentCard(
+                    appointment = appointment,
+                    onViewDetails = { navController.navigate("appointmentDetails/${appointment.id}") }
+                )
+            }
         }
     }
 }
@@ -284,34 +319,28 @@ private fun openFile(context: Context, url: String) {
     }
 }
 
-
-@Composable
-private fun ActionButton(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    FilledTonalButton(
-        onClick = onClick,
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Icon(icon, contentDescription = null)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(label)
-    }
-}
-
 @Composable
 fun AppointmentCard(
     appointment: Appointment,
-    onViewDetails: () -> Unit
+    onViewDetails: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val dateFormatter = remember { java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()) }
+    val formattedDate = remember(appointment.date) {
+        dateFormatter.format(appointment.date.toDate())
+
+    }
+    val statusColor = when (appointment.status.lowercase()) {
+        "scheduled" -> Color(0xFF2196F3)  // Blue
+        "completed" -> Color(0xFF4CAF50)   // Green
+        "cancelled" -> Color(0xFFF44336)   // Red
+        else -> Color(0xFF9E9E9E)          // Gray
+    }
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -331,17 +360,23 @@ fun AppointmentCard(
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("With: ${appointment.doctorName}")
-                Text("Date: ${appointment.date}")
-                Text("Time: ${appointment.time}")
+                Text("Date: $formattedDate")
+                Text("Time: ${appointment.startTime} - ${appointment.endTime}")
+                Text("Status: ${appointment.status.replaceFirstChar { it.uppercase() }}")
             }
-
-            Button(
-                onClick = onViewDetails,
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
+                    .background(
+                        color = statusColor.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text("View Details")
+                Text(
+                    text = appointment.status.replaceFirstChar { it.uppercase() },
+                    color = statusColor,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }

@@ -53,6 +53,8 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation (platform("com.google.firebase:firebase-bom:32.3.1"))
+    implementation("com.google.firebase:firebase-messaging:24.0.0") // lub najnowsze
+
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.7.8") // Główna biblioteka Compose
     implementation("androidx.compose.material3:material3:1.3.1") // Material3 dla Compose
@@ -95,7 +97,9 @@ dependencies {
     // Other dependencies
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.navigation.compose)  // Bill of Materials dla Compose
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.foundation.layout.android)
+    implementation(libs.firebase.functions.ktx)  // Bill of Materials dla Compose
 
     // Test dependencies
     testImplementation(libs.junit)
@@ -112,4 +116,5 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.3.0")
     implementation("com.google.android.gms:play-services-tasks:18.3.0")
 
+    
 }

@@ -29,12 +29,19 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
         composable("patientHome") { PatientMainScreen(navController) }
         composable("register") {
             RegisterScreen(navController) { email, password, firstname, surname ->
-                registerUser(email, password, firstname, surname,navController)
+                registerUser(email, password, firstname, surname, navController)
             }
         }
         composable("bookAppointment") {
             BookAppointmentScreen(navController)
         }
         composable("admin") { UserListScreen(navController) }
+//        composable("schedules/{userId}") { backStackEntry ->
+//            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+//            SchedulesScreen(
+//                userId = userId,
+//                onBack = { navController.popBackStack() }
+//            )
+//        }
     }
 }

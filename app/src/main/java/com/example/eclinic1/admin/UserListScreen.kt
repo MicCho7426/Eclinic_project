@@ -63,6 +63,18 @@ fun UserListScreen(
     }
 
     Scaffold(
+        floatingActionButton = {
+            UserListFab(
+                fabExpanded = fabExpanded,
+                onFabExpandChange = { fabExpanded = it },
+                onCreateUserClick = {
+                    navController.navigate("create")
+                },
+                onSendMessageClick = {
+                    showPushMessageDialog=true
+                }
+            )
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -88,18 +100,6 @@ fun UserListScreen(
                     IconButton(onClick = {}) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
-                }
-            )
-        },
-        floatingActionButton = {
-            UserListFab(
-                fabExpanded = fabExpanded,
-                onFabExpandChange = { fabExpanded = it },
-                onCreateUserClick = {
-                    // np. navController.navigate("create")
-                },
-                onSendMessageClick = {
-                    showPushMessageDialog=true
                 }
             )
         },

@@ -9,6 +9,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.eclinic1.admin.AdminActivity
+import com.example.eclinic1.admin.Create
 import com.example.eclinic1.admin.SchedulesScreen
 import com.example.eclinic1.doctor.DoctorHomeScreen
 import com.example.eclinic1.patient.PatientMainScreen
@@ -47,5 +48,6 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
                 navController = navController
             )
         }
+        composable("create"){Create(navController)}
     }
 }

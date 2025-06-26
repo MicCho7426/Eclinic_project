@@ -4,8 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -18,6 +22,7 @@ data class DoctorInfo(
     val specializations: List<String>
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateChatPatientScreen(navController: NavController) {
     val db = FirebaseFirestore.getInstance()
@@ -25,43 +30,98 @@ fun CreateChatPatientScreen(navController: NavController) {
     val currentUserId = auth.currentUser?.uid ?: return
 
     var doctorList by remember { mutableStateOf<List<DoctorInfo>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         db.collection("users")
             .whereEqualTo("role", "doctor")
             .get()
             .addOnSuccessListener { result ->
-                val list = result.documents.mapNotNull { doc ->
-                    val id = doc.getString("DoctorId") ?: return@mapNotNull null
-                    val name = "${doc.getString("firstname") ?: ""} ${doc.getString("surname") ?: ""}"
-                    val specs = doc.get("Specialization") as? List<String> ?: emptyList()
-                    DoctorInfo(doctorId = id, fullName = name, specializations = specs)
+                doctorList = result.documents.mapNotNull { doc ->
+                    DoctorInfo(
+                        doctorId = doc.getString("DoctorId") ?: doc.id,
+                        fullName = "${doc.getString("firstname") ?: ""} ${doc.getString("surname") ?: ""}",
+                        specializations = doc.get("Specialization") as? List<String> ?: emptyList()
+                    )
                 }
-                doctorList = list
+                isLoading = false
             }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Choose a doctor to start a chat:", style = MaterialTheme.typography.titleMedium)
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Select Doctor") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search doctors") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn {
-            items(doctorList) { doctor ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clickable {
-                            createChat(currentUserId, doctor.doctorId, navController)
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(
+                        doctorList.filter {
+                            it.fullName.contains(searchQuery, ignoreCase = true) ||
+                                    it.specializations.any { spec ->
+                                        spec.contains(searchQuery, ignoreCase = true)
+                                    }
                         }
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(doctor.fullName, style = MaterialTheme.typography.titleSmall)
-                        Text("Specializations: ${doctor.specializations.joinToString()}")
+                    ) { doctor ->
+                        DoctorCard(
+                            doctor = doctor,
+                            onClick = {
+                                createChat(currentUserId, doctor.doctorId, navController)
+                            }
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun DoctorCard(doctor: DoctorInfo, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                doctor.fullName,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Specializations: ${doctor.specializations.joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }

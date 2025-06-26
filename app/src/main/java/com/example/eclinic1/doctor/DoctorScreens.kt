@@ -348,6 +348,17 @@ fun DoctorProfileScreen(navController: NavController, onLogout: () -> Unit) {
         }) {
             Text("💾 Save")
         }
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = { navController.navigate("doctorSchedule") },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("🗓️ Manage Schedule")
+        }
+
+        Spacer(Modifier.height(16.dp))
 
         Spacer(Modifier.height(24.dp))
         Button(

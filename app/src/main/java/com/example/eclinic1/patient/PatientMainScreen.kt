@@ -17,7 +17,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.eclinic1.BookAppointmentScreen
 import com.example.eclinic1.R
 import com.example.eclinic1.SearchScreen
 import com.example.eclinic1.chat.ChatDetailScreen
@@ -86,8 +85,6 @@ fun PatientNavHost(
                 // Handle not logged in case
             }
         }
-        composable("bookAppointment") {
-            BookAppointmentScreen(navController = navController)}
         composable(PatientNavItem.Search.route) { SearchScreen() }
         composable("patientData") { PatientDataScreen(navController) }
         composable(PatientNavItem.Calendar.route) {Calendar()}

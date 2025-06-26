@@ -10,6 +10,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,10 +55,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -174,18 +178,27 @@ private fun PatientContent(
         Column(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(
-                onClick = { patientNavController.navigate("viewDoctors") },
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clickable { patientNavController.navigate("viewDoctors") }
             ) {
-                Text("View Doctors")
-            }
+                Image(
+                    painter = painterResource(id = R.drawable.ic_doctors),
+                    contentDescription = null, // Decorative image
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-            Button(
-                onClick = { patientNavController.navigate("bookAppointment") },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Book Appointment")
+                Text(
+                    text = "View Available Doctors",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .shadow(4.dp)
+                )
             }
         }
     }

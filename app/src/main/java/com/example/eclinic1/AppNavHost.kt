@@ -33,9 +33,6 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
                 registerUser(email, password, firstname, surname, navController)
             }
         }
-        composable("bookAppointment") {
-            BookAppointmentScreen(navController)
-        }
         composable("viewDoctors") { DoctorsScreen(navController) }
         composable("admin") { UserListScreen(navController) }
 //        composable("schedules/{userId}") { backStackEntry ->

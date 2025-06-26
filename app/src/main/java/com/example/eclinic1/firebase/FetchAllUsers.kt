@@ -78,6 +78,15 @@ class FetchAllUsers : FetchFirestoreName() {
                 Log.e("FirestoreUpdateError", "Failed to update doctor fields: ${e.message}")
             }
     }
+    fun getDoctorDetails(uid: String, onResult: (String, List<String>) -> Unit) {
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { document ->
+                val doctorId = document.getString("DoctorId") ?: ""
+                val specialization = document.get("Specialization") as? List<String> ?: emptyList()
+                onResult(doctorId, specialization)
+            }
+    }
+
 
     fun deleteUser(uid: String) {
         FirebaseAuth.getInstance().currentUser?.let { currentUser ->
@@ -107,57 +116,45 @@ class FetchAllUsers : FetchFirestoreName() {
             .map { it.getString("role") ?: "patient" }
     }
 
-    //    suspend fun getSchedules(uid: String): List<Schedule> {
-//        val db = FirebaseFirestore.getInstance()
-//        val bookedSchedules = mutableListOf<Schedule>()
-//        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-//
-//        // Pobierz listę wszystkich podkolekcji (dat) dla danego użytkownika
-//        val collections = db.collection("schedules")
-//            .document(uid)
-//            .listCollections()
-//            .await()
-//
-//        for (collection in collections) {
-//            val dateStr = collection.id
-//            val date = try {
-//                sdf.parse(dateStr)
-//            } catch (e: Exception) {
-//                null
-//            }
-//
-//            val snapshot = collection
-//                .whereEqualTo("isBooked", true)
-//                .get()
-//                .await()
-//
-//            for (doc in snapshot.documents) {
-//                val schedule = Schedule(
-//                    id = doc.id,
-//                    isBooked = doc.getBoolean("isBooked") ?: false,
-//                    startTime = doc.getString("startTime") ?: "",
-//                    endTime = doc.getString("endTime") ?: "",
-//                    date = date
-//                )
-//                bookedSchedules.add(schedule)
-//            }
-//        }
-//
-//        return bookedSchedules
-//    }
-    fun deleteSchedule(userId: String, scheduleId: String) {
-        db.collection("schedules")
-            .document(userId)
-            .collection("appointments")
+    suspend fun getSchedules(uid: String,date:String): List<Schedule> {
+        return try {
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("schedules")
+                .document(uid)
+                .collection("2025-06-09")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                val isBooked=doc.getBoolean("isBooked")?:false
+                if(isBooked) {
+
+
+                    Schedule(
+                        id = doc.id,
+                        isBooked = doc.getBoolean("isBooked") ?: false,
+                        startTime = doc.getString("startTime") ?: "",
+                        endTime = doc.getString("endTime") ?: "",
+                        date = doc.getDate("date"),
+                        dateString = doc.getString("dateString") ?: ""
+                    )
+                }else{
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+
+    fun deleteSchedule(scheduleId: String) {
+        FirebaseFirestore.getInstance()
+            .collection("schedules")
             .document(scheduleId)
             .delete()
-            .addOnSuccessListener {
-                Log.d("Firestore", "Schedule deleted successfully")
-            }
-            .addOnFailureListener { e ->
-                Log.e("Firestore", "Error deleting schedule", e)
-            }
     }
+
 
     fun sendPushNotification(token: String?, message: String?, onComplete: (Boolean) -> Unit ){
         val data = mapOf(

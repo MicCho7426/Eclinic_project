@@ -1,19 +1,46 @@
 package com.example.eclinic1.patient
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.ResolverStyle
+
 data class PatientData(
-    // These fields match your Firestore document structure
-    var userId: String = "", // Optional: only if you want to store it in the object
+    val userId: String? = null,
     val dob: String? = null,
     val medicalHistory: String? = null,
     val height: String? = null,
     val weight: String? = null,
     val uploadedFiles: List<String> = emptyList(),
-    // Add any other fields that exist in your Firestore document
-    val firstName: String? = null,
-    val lastName: String? = null,
+    val firstname: String? = null,
+    val surname: String? = null,
     val email: String? = null
 ) {
-    // Optional: Helper property to display full name
     val fullName: String
-        get() = listOfNotNull(firstName, lastName).joinToString(" ")
+        get() = listOfNotNull(firstname, surname).joinToString(" ")
+
+    val bmi: Double?
+        get() = calculateBMI()
+
+    private fun calculateBMI(): Double? {
+        return try {
+            val heightM = height?.toDouble()?.div(100) ?: return null
+            val weightKg = weight?.toDouble() ?: return null
+            weightKg / (heightM * heightM)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun isValidDOB(): Boolean {
+        return dob?.let {
+            try {
+                val formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd")
+                    .withResolverStyle(ResolverStyle.STRICT)
+                LocalDate.parse(it, formatter)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        } ?: false
+    }
 }

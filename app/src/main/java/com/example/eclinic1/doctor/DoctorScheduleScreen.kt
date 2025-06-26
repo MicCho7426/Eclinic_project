@@ -7,7 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -59,11 +60,25 @@ fun DoctorScheduleScreen(navController: NavController) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Weekly Schedule") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Weekly Schedule") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
     ) { padding ->
         LazyColumn(
-            contentPadding = padding,
-            modifier = Modifier.padding(16.dp).fillMaxSize()
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 16.dp,
+                bottom = padding.calculateBottomPadding() + 80.dp
+            ),
+            modifier = Modifier.fillMaxSize()
         ) {
             item {
                 Button(onClick = {
@@ -93,88 +108,98 @@ fun DoctorScheduleScreen(navController: NavController) {
                 }
                 Spacer(Modifier.height(12.dp))
             }
-
             item {
-                Button(onClick = {
-                    times.forEach { (dateKey, pair) ->
-                        val (start, end) = pair
-                        if (start.isNotBlank() && end.isNotBlank()) {
-                            val slots = generateTimeSlots(start, end)
-                            val collectionRef = db.collection("schedules").document(userId).collection(dateKey)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = {
+                            times.forEach { (dateKey, pair) ->
+                                val (start, end) = pair
+                                if (start.isNotBlank() && end.isNotBlank()) {
+                                    val slots = generateTimeSlots(start, end)
+                                    val collectionRef = db.collection("schedules").document(userId).collection(dateKey)
 
-                            collectionRef.get().addOnSuccessListener { existing ->
-                                val batch = db.batch() // osobny batch w każdej iteracji
-                                existing.forEach { batch.delete(it.reference) }
+                                    collectionRef.get().addOnSuccessListener { existing ->
+                                        val batch = db.batch()
+                                        existing.forEach { batch.delete(it.reference) }
 
-                                slots.forEach { (slotStart, slotEnd) ->
-                                    val doc = collectionRef.document()
-                                    batch.set(doc, mapOf(
-                                        "startTime" to slotStart,
-                                        "endTime" to slotEnd,
-                                        "isBooked" to false
-                                    ))
-                                }
+                                        slots.forEach { (slotStart, slotEnd) ->
+                                            val doc = collectionRef.document()
+                                            batch.set(doc, mapOf(
+                                                "startTime" to slotStart,
+                                                "endTime" to slotEnd,
+                                                "isBooked" to false
+                                            ))
+                                        }
 
-                                batch.commit().addOnSuccessListener {
-                                    Toast.makeText(context, "Saved schedule for $dateKey", Toast.LENGTH_SHORT).show()
-                                }.addOnFailureListener {
-                                    Toast.makeText(context, "Error for $dateKey: ${it.message}", Toast.LENGTH_SHORT).show()
+                                        batch.commit().addOnSuccessListener {
+                                            Toast.makeText(context, "Saved schedule for $dateKey", Toast.LENGTH_SHORT).show()
+                                        }.addOnFailureListener {
+                                            Toast.makeText(context, "Error for $dateKey: ${it.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
-                }) {
-                    Text("Save Weekly Schedule")
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(onClick = {
-                    val sourceStart = getStartOfWeek(weekStart)
-                    val targetStart = Calendar.getInstance().apply {
-                        time = sourceStart
-                        add(Calendar.DAY_OF_MONTH, 7)
-                    }.time
-                    val sourceDates = List(7) { offset ->
-                        Calendar.getInstance().apply {
-                            time = sourceStart
-                            add(Calendar.DAY_OF_MONTH, offset)
-                        }.time
-                    }
-                    val targetDates = List(7) { offset ->
-                        Calendar.getInstance().apply {
-                            time = targetStart
-                            add(Calendar.DAY_OF_MONTH, offset)
-                        }.time
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Save")
                     }
 
-                    sourceDates.zip(targetDates).forEach { (sourceDate, targetDate) ->
-                        val sourceKey = formatter.format(sourceDate)
-                        val targetKey = formatter.format(targetDate)
-                        val sourceRef = db.collection("schedules").document(userId).collection(sourceKey)
-                        val targetRef = db.collection("schedules").document(userId).collection(targetKey)
-
-                        sourceRef.get().addOnSuccessListener { documents ->
-                            val batch = db.batch()
-                            documents.forEach { doc ->
-                                val data = doc.data.toMutableMap()
-                                data["isBooked"] = false
-                                val newDoc = targetRef.document()
-                                batch.set(newDoc, data)
+                    Button(
+                        onClick = {
+                            val sourceStart = getStartOfWeek(weekStart)
+                            val targetStart = Calendar.getInstance().apply {
+                                time = sourceStart
+                                add(Calendar.DAY_OF_MONTH, 7)
+                            }.time
+                            val sourceDates = List(7) { offset ->
+                                Calendar.getInstance().apply {
+                                    time = sourceStart
+                                    add(Calendar.DAY_OF_MONTH, offset)
+                                }.time
+                            }
+                            val targetDates = List(7) { offset ->
+                                Calendar.getInstance().apply {
+                                    time = targetStart
+                                    add(Calendar.DAY_OF_MONTH, offset)
+                                }.time
                             }
 
-                            batch.commit()
-                                .addOnSuccessListener {
-                                    Toast.makeText(context, "Copied $sourceKey → $targetKey", Toast.LENGTH_SHORT).show()
+                            sourceDates.zip(targetDates).forEach { (sourceDate, targetDate) ->
+                                val sourceKey = formatter.format(sourceDate)
+                                val targetKey = formatter.format(targetDate)
+                                val sourceRef = db.collection("schedules").document(userId).collection(sourceKey)
+                                val targetRef = db.collection("schedules").document(userId).collection(targetKey)
+
+                                sourceRef.get().addOnSuccessListener { documents ->
+                                    val batch = db.batch()
+                                    documents.forEach { doc ->
+                                        val data = doc.data.toMutableMap()
+                                        data["isBooked"] = false
+                                        val newDoc = targetRef.document()
+                                        batch.set(newDoc, data)
+                                    }
+
+                                    batch.commit()
+                                        .addOnSuccessListener {
+                                            Toast.makeText(context, "Copied $sourceKey → $targetKey", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .addOnFailureListener {
+                                            Toast.makeText(context, "Error copying $sourceKey: ${it.message}", Toast.LENGTH_LONG).show()
+                                        }
                                 }
-                                .addOnFailureListener {
-                                    Toast.makeText(context, "Error copying $sourceKey: ${it.message}", Toast.LENGTH_LONG).show()
-                                }
-                        }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Copy to Next Week")
                     }
-                }) {
-                    Text("Copy to Next Week")
                 }
+
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
@@ -211,7 +236,7 @@ fun TimeInput(label: String, value: String, onTimeSelected: (String) -> Unit) {
                     true
                 ).show()
             }) {
-                Icon(Icons.Default.DateRange, contentDescription = null)
+                Icon(Icons.Default.AccessTime, contentDescription = null)
             }
         }
     )

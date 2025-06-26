@@ -1,25 +1,29 @@
 package com.example.eclinic1
 
 import android.app.DatePickerDialog
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.*
-import kotlinx.coroutines.tasks.await
-import android.util.Log
+import androidx.compose.ui.draw.clip
 
 
 val SPECIALIZATIONS = listOf(
@@ -48,7 +52,6 @@ fun SearchScreen() {
 
     val zoneId = ZoneId.of("Europe/Warsaw")
     var currentServerTime by remember { mutableStateOf<ZonedDateTime?>(null) }
-
     var selectedDate by remember { mutableStateOf("") }
     var specialization by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
@@ -56,9 +59,7 @@ fun SearchScreen() {
     var confirmationSlot by remember { mutableStateOf<AppointmentSlot?>(null) }
 
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val fullFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
-    // fetch current time once
     LaunchedEffect(Unit) {
         try {
             val docRef = db.collection("serverTime").document("now")
@@ -85,7 +86,12 @@ fun SearchScreen() {
             )
         }
     }
-    Column(modifier = Modifier.padding(16.dp)) {
+
+    Column(modifier = Modifier
+        .padding(16.dp)
+        .fillMaxSize()) {
+
+        // Stylizowany wybór specjalizacji
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
             OutlinedTextField(
                 value = specialization,
@@ -93,91 +99,93 @@ fun SearchScreen() {
                 readOnly = true,
                 label = { Text("Select specialization") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth()
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
             )
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 SPECIALIZATIONS.forEach {
-                    DropdownMenuItem(text = { Text(it) }, onClick = {
-                        specialization = it
-                        expanded = false
-                        fetch()
-                    })
+                    DropdownMenuItem(
+                        text = { Text(it) },
+                        onClick = {
+                            specialization = it
+                            expanded = false
+                            fetch()
+                        }
+                    )
                 }
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("<", modifier = Modifier
-                .clickable {
-                    val current = LocalDate.parse(selectedDate, formatter)
-                    val previous = current.minusDays(1)
-                    if (!previous.isBefore(currentServerTime?.toLocalDate())) {
-                        selectedDate = previous.format(formatter)
-                        fetch()
-                    }
-                }
-                .padding(8.dp))
-
-            OutlinedTextField(
-                value = selectedDate,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Date") },
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable {
-                        val now = currentServerTime ?: return@clickable
-                        val today = now.toLocalDate()
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, d ->
-                                val picked = LocalDate.of(y, m + 1, d)
-                                if (!picked.isBefore(today)) {
-                                    selectedDate = picked.format(formatter)
-                                    fetch()
-                                }
-                            },
-                            now.year,
-                            now.monthValue - 1,
-                            now.dayOfMonth
-                        ).apply {
-                            datePicker.minDate = Date.from(today.atStartOfDay(zoneId).toInstant()).time
-                        }.show()
-                    }
+        // Stylizowany niebieski przycisk do wyboru daty
+        Button(
+            onClick = {
+                val now = currentServerTime ?: return@Button
+                val today = now.toLocalDate()
+                DatePickerDialog(
+                    context,
+                    { _, y, m, d ->
+                        val picked = LocalDate.of(y, m + 1, d)
+                        if (!picked.isBefore(today)) {
+                            selectedDate = picked.format(formatter)
+                            fetch()
+                        }
+                    },
+                    now.year,
+                    now.monthValue - 1,
+                    now.dayOfMonth
+                ).apply {
+                    datePicker.minDate = Date.from(today.atStartOfDay(zoneId).toInstant()).time
+                }.show()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF435C9C)),
+            shape = RoundedCornerShape(24.dp), // dla stylu jak na screenie
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
+            Text(
+                text = selectedDate,
+                color = Color.White
             )
-
-            Text(">", modifier = Modifier
-                .clickable {
-                    val current = LocalDate.parse(selectedDate, formatter)
-                    selectedDate = current.plusDays(1).format(formatter)
-                    fetch()
-                }
-                .padding(8.dp))
         }
 
-        Spacer(Modifier.height(12.dp))
 
-        LazyColumn {
+        Spacer(Modifier.height(16.dp))
+
+// ... kontynuacja w części 2/2 ...
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (availableSlots.isEmpty()) {
-                item { Text("No available appointments.") }
+                item {
+                    Text(
+                        "No available appointments.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             } else {
                 items(availableSlots) { slot ->
-                    Column(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { confirmationSlot = slot }
-                            .padding(12.dp)
+                            .clickable { confirmationSlot = slot },
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(6.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFDDE6F9))
                     ) {
-                        Text("Date: ${slot.date}")
-                        Text("Doctor: ${slot.doctorName}")
-                        Text("Time: ${slot.startTime} - ${slot.endTime}")
-                        Divider(modifier = Modifier.padding(top = 8.dp))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("📅 ${slot.date}", style = MaterialTheme.typography.titleSmall)
+                            Text("👨‍⚕️ ${slot.doctorName}", style = MaterialTheme.typography.bodyMedium)
+                            Text("🕒 ${slot.startTime} - ${slot.endTime}", style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
             }
         }
+
     }
 
     confirmationSlot?.let { slot ->

@@ -10,6 +10,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class PatientHomeViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -67,26 +69,53 @@ class PatientHomeViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val now = Timestamp.now()
+
+                // Debug: Print current time and user ID
+                Log.d("AppointmentsDebug", "Current time: ${now.toDate()}")
+                Log.d("AppointmentsDebug", "User ID: $userId")
+
+                // First, get all appointments for this patient without date filter
                 val snapshot = db.collection("meetings")
                     .whereEqualTo("patientId", userId)
-                    .whereGreaterThanOrEqualTo("date", now)
-                    .orderBy("date")
                     .get()
                     .await()
-                // Debug logging
-                Log.d("Appointments", "Found ${snapshot.size()} appointments")
-                snapshot.documents.forEach { doc ->
-                    Log.d("Appointment", "ID: ${doc.id}, Date: ${doc.getTimestamp("date")}")
-                }
+
+                Log.d("AppointmentsDebug", "Found ${snapshot.size()} appointments for patient")
 
                 val appointmentsList = snapshot.documents.mapNotNull { doc ->
                     try {
                         val data = doc.data ?: return@mapNotNull null
+
+                        // Safely handle the date field which might not be a Timestamp
+                        val date = when (val dateField = data["date"]) {
+                            is Timestamp -> dateField
+                            is String -> try {
+                                // Parse from string if stored as ISO format
+                                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                val dateObj = dateFormat.parse(dateField)
+                                Timestamp(dateObj)
+                            } catch (e: Exception) {
+                                Log.e("DateParse", "Failed to parse date string", e)
+                                Timestamp.now() // Fallback
+                            }
+                            is com.google.firebase.Timestamp -> dateField // Alternative Timestamp class
+                            else -> {
+                                Log.w("DateWarning", "Unknown date format in doc ${doc.id}")
+                                Timestamp.now() // Fallback
+                            }
+                        }
+
+                        // Only include future appointments
+                        if (date.toDate().before(now.toDate())) {
+                            Log.d("AppointmentFilter", "Skipping past appointment: ${doc.id}")
+                            return@mapNotNull null
+                        }
+
                         Appointment(
                             id = doc.id,
                             patientId = data["patientId"] as? String ?: "",
                             doctorId = data["doctorId"] as? String ?: "",
-                            date = data["date"] as? Timestamp ?: Timestamp.now(),
+                            date = date,
                             patientName = data["patientName"] as? String ?: "",
                             doctorName = data["doctorName"] as? String ?: "",
                             startTime = data["startTime"] as? String ?: "",
@@ -94,12 +123,17 @@ class PatientHomeViewModel : ViewModel() {
                             status = data["status"] as? String ?: "scheduled"
                         )
                     } catch (e: Exception) {
+                        Log.e("AppointmentError", "Error parsing doc ${doc.id}", e)
                         null
                     }
                 }
-                _appointments.value = appointmentsList
+
+                Log.d("AppointmentsDebug", "Filtered to ${appointmentsList.size} future appointments")
+                _appointments.value = appointmentsList.sortedBy { it.date }
+
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("AppointmentsError", "Failed to load appointments", e)
+                _appointments.value = emptyList() // Ensure empty state rather than crashing
             }
         }
     }

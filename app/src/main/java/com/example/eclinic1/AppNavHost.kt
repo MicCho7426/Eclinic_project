@@ -16,6 +16,7 @@ import com.example.eclinic1.chat.ChatScreen
 import com.example.eclinic1.chat.CreateChatDoctorScreen
 import com.example.eclinic1.chat.CreateChatPatientScreen
 import com.example.eclinic1.doctor.DoctorScheduleScreen
+import com.example.eclinic1.patient.DoctorsScreen
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -35,6 +36,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
         composable("bookAppointment") {
             BookAppointmentScreen(navController)
         }
+        composable("viewDoctors") { DoctorsScreen(navController) }
         composable("admin") { UserListScreen(navController) }
 //        composable("schedules/{userId}") { backStackEntry ->
 //            val userId = backStackEntry.arguments?.getString("userId") ?: ""

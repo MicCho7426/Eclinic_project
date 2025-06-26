@@ -36,6 +36,14 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.storage.FirebaseStorage
+
 
 
 @Composable
@@ -239,129 +247,140 @@ fun DoctorProfileScreen(navController: NavController, onLogout: () -> Unit) {
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
     val context = LocalContext.current
-    val userId = auth.currentUser?.uid
+    val userId = auth.currentUser?.uid ?: return
+
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
+    var profileData by remember { mutableStateOf<Map<String, Any>?>(null) }
+    var avatarUri by remember { mutableStateOf<Uri?>(null) }
+    var noteText by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? -> uri?.let { avatarUri = it } }
+
+    // Load data
     LaunchedEffect(userId) {
-        userId?.let { uid ->
-            db.collection("users").document(uid).get()
-                .addOnSuccessListener { document ->
-                    userData = document.data?.apply {
-                        Log.d("ProfileScreen", "User data: $this")
-                    }
-                }
+        db.collection("users").document(userId).get().addOnSuccessListener {
+            userData = it.data
+        }
+        db.collection("doctorProfiles").document(userId).get().addOnSuccessListener {
+            profileData = it.data
+            noteText = it.getString("note") ?: ""
         }
     }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Profile header with image
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .background(MaterialTheme.colorScheme.primary)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.doctor_avatar), // Add your doctor avatar image
-                    contentDescription = "Doctor Profile",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(40.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "👨‍⚕️ Doctor Profile",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("👨‍⚕️ Doctor Profile", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+
+        Spacer(Modifier.height(16.dp))
+
+        val avatarUrl = profileData?.get("avatarUrl") as? String
+        if (avatarUri != null) {
+            Image(
+                painter = rememberAsyncImagePainter(avatarUri),
+                contentDescription = null,
+                modifier = Modifier.size(120.dp).clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else if (!avatarUrl.isNullOrEmpty()) {
+            Image(
+                painter = rememberAsyncImagePainter(avatarUrl),
+                contentDescription = null,
+                modifier = Modifier.size(120.dp).clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(120.dp))
         }
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+
+        TextButton(onClick = { pickImageLauncher.launch("image/*") }) {
+            Text("Change Avatar")
+        }
+
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = noteText,
+            onValueChange = { noteText = it },
+            label = { Text("Note") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        userData?.let {
+            val firstname = it["firstname"] as? String ?: ""
+            val surname = it["surname"] as? String ?: ""
+            val email = it["email"] as? String ?: ""
+
+            Spacer(Modifier.height(12.dp))
+            ProfileInfoItem(Icons.Default.Person, "Name", "$firstname $surname")
+            ProfileInfoItem(Icons.Default.Email, "Email", email)
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = {
+            val docRef = db.collection("doctorProfiles").document(userId)
+
+            fun saveProfile(url: String?) {
+                val data = hashMapOf(
+                    "note" to noteText,
+                    "avatarUrl" to (url ?: profileData?.get("avatarUrl"))
+                )
+                docRef.set(data).addOnSuccessListener {
+                    Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            if (avatarUri != null) {
+                val storageRef = FirebaseStorage.getInstance().reference
+                    .child("avatars/$userId.jpg")
+                storageRef.putFile(avatarUri!!).continueWithTask { task ->
+                    if (!task.isSuccessful) throw task.exception!!
+                    storageRef.downloadUrl
+                }.addOnSuccessListener { uri ->
+                    saveProfile(uri.toString())
+                }.addOnFailureListener {
+                    Log.e("Upload", "Avatar upload failed", it)
+                    Toast.makeText(context, "Upload failed", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                saveProfile(null)
+            }
+        }) {
+            Text("💾 Save")
+        }
+
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = { showLogoutDialog = true },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
         ) {
-            item {
-                if (userData != null) {
-                    ProfileInfoItem(icon = Icons.Default.Person, title = "Name", value = userData?.get("name") as? String ?: "N/A")
-                    ProfileInfoItem(icon = Icons.Default.Email, title = "Email", value = userData?.get("email") as? String ?: "N/A")
-                    ProfileInfoItem(icon = Icons.Default.Work, title = "Specialization", value = userData?.get("specialization") as? String ?: "General Practitioner")
-                    ProfileInfoItem(icon = Icons.Default.Phone, title = "Phone", value = userData?.get("phone") as? String ?: "N/A")
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Button(
-                        onClick = { navController.navigate("doctorSchedule") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Icon(Icons.Default.Schedule, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("📅 Manage Schedule")
-                    }
-                } else {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = { showLogoutDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Icon(Icons.Default.Logout, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("🚪 Log Out")
-                }
-            }
+            Text("🚪 Log Out")
         }
     }
 
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("🔒 Confirm Logout") },
-            text = { Text("Are you sure you want to sign out?") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLogoutDialog = false
-                        auth.signOut()
-                        onLogout()
-                    }
-                ) {
-                    Text("Log Out", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = {
+                    FirebaseAuth.getInstance().signOut()
+                    onLogout()
+                }) {
+                    Text("Yes")
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showLogoutDialog = false }
-                ) {
+                TextButton(onClick = { showLogoutDialog = false }) {
                     Text("Cancel")
                 }
-            }
+            },
+            title = { Text("Confirm Logout") },
+            text = { Text("Do you really want to log out?") }
         )
     }
 }
+
+
 
 @Composable
 fun ProfileInfoItem(icon: Any, title: String, value: String) {

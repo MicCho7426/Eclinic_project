@@ -26,7 +26,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -80,6 +82,13 @@ fun PatientHomeScreen(
     val userId = FirebaseAuth.getInstance().currentUser?.uid ?: run {
         return
     }
+    val items = listOf(
+        PatientNavItem.Home,
+        PatientNavItem.Search,
+        PatientNavItem.Profile,
+        PatientNavItem.Chat,
+        PatientNavItem.Calendar
+    )
 
     LaunchedEffect(userId) {
         viewModel.loadData(userId)
@@ -98,24 +107,36 @@ fun PatientHomeScreen(
                     containerColor = Color(0xFF1976D2)
                 )
             )
+        },
+        bottomBar = {
+            // Add your BottomNavigationBar here if you have one
+            PatientBottomNavigation(patientNavController, items)
         }
     ) { paddingValues ->
-        when {
-            isLoading -> FullScreenLoader()
-            else -> PatientContent(
-                modifier = Modifier.padding(paddingValues),
-                appointments = appointments,
-                patientData = patientData,
-                navController = navController,
-                onFileClick = { url -> openFile(context, url) },
-                patientNavController = patientNavController
-            )
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            when {
+                isLoading -> FullScreenLoader()
+                else -> PatientContent(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    appointments = appointments,
+                    patientData = patientData,
+                    navController = navController,
+                    onFileClick = { url -> openFile(context, url) },
+                    patientNavController = patientNavController
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun FullScreenLoader() {
+fun FullScreenLoader() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -132,33 +153,40 @@ private fun PatientContent(
     navController: NavHostController,
     onFileClick: (String) -> Unit,
     patientNavController: NavHostController
-
 ) {
     Column(
         modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // Upcoming Appointments
-        AppointmentsSection(appointments, navController)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
+        AppointmentsSection(
+            appointments = appointments,
+            navController = navController
+        )
         // Health Summary
         patientData?.let { data ->
             HealthSummaryCard(
                 patientData = data,
                 onFileClick = onFileClick
             )
-            Spacer(modifier = Modifier.height(24.dp))
         }
-        Button(
-            onClick = {
-                patientNavController.navigate("bookAppointment") {
-                }
-            }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Book Appointment")
+            Button(
+                onClick = { patientNavController.navigate("viewDoctors") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("View Doctors")
+            }
+
+            Button(
+                onClick = { patientNavController.navigate("bookAppointment") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Book Appointment")
+            }
         }
     }
 }

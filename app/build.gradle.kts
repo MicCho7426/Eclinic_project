@@ -70,6 +70,7 @@ dependencies {
     implementation ("androidx.browser:browser:1.5.0")
     implementation ("com.google.android.gms:play-services-auth:20.7.0")
     implementation ("com.google.android.gms:play-services-base:18.2.0")
+    implementation("io.coil-kt:coil-compose:2.4.0")
 
     // Firebase dependencies
     implementation(libs.firebase.auth.ktx)

@@ -89,6 +89,7 @@ fun PatientNavHost(
         composable("bookAppointment") {
             BookAppointmentScreen(navController = navController)}
         composable(PatientNavItem.Search.route) { SearchScreen() }
+        composable("patientData") { PatientDataScreen(navController) }
         composable(PatientNavItem.Calendar.route) {Calendar()}
         composable("patientData") {PatientDataScreen(navController)}
         composable("appointmentDetails") {  }
@@ -130,6 +131,10 @@ fun PatientNavHost(
                 )
             }
         }
+        composable("pastAppointments") {
+            PastAppointmentsScreen(navController)
+        }
+        composable("viewDoctors") { DoctorsScreen(navController) }
         composable("createChatPatient") { CreateChatPatientScreen(navController) }
         composable("createChatDoctor") { CreateChatDoctorScreen(navController) }
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,16 +15,8 @@ class PatientProfileViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
-    private val _patientData = MutableStateFlow<PatientData?>(null)
-    val patientData: StateFlow<PatientData?> = _patientData.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
-    private val currentUserId = auth.currentUser?.uid
+    private val _uiState = MutableStateFlow<PatientProfileUiState>(PatientProfileUiState.Loading)
+    val uiState: StateFlow<PatientProfileUiState> = _uiState.asStateFlow()
 
     init {
         loadPatientData()
@@ -32,30 +25,55 @@ class PatientProfileViewModel : ViewModel() {
     fun loadPatientData() {
         viewModelScope.launch {
             try {
-                _isLoading.value = true
-                val userId = currentUserId ?: run {
-                    _errorMessage.value = "No authenticated user found"
-                    return@launch
+                _uiState.value = PatientProfileUiState.Loading
+                val userId = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+
+                // Load both user and patient data in parallel
+                val userDeferred = async { db.collection("users").document(userId).get().await() }
+                val patientDeferred = async { db.collection("patients").document(userId).get().await() }
+
+                val userDoc = userDeferred.await()
+                val patientDoc = patientDeferred.await()
+
+                if (!patientDoc.exists()) {
+                    throw Exception("Patient record not found")
                 }
 
-                val document = db.collection("patients").document(userId).get().await()
-                if (document.exists()) {
-                    _patientData.value = document.toObject(PatientData::class.java)?.apply {
-                        // If you need to store userId separately in the data class
-                        this.userId = userId
-                    }
-                } else {
-                    _errorMessage.value = "No patient data found"
-                }
+                _uiState.value = PatientProfileUiState.Success(
+                    PatientProfileData(
+                        fullName = "${userDoc.getString("firstname")} ${userDoc.getString("surname")}",
+                        email = userDoc.getString("email"),
+                        dob = patientDoc.getString("dob"),
+                        height = patientDoc.getString("height"),
+                        weight = patientDoc.getString("weight"),
+                        medicalHistory = patientDoc.getString("medicalHistory"),
+                        documents = patientDoc.get("documents") as? List<String> ?: emptyList(),
+                        profileImageUrl = userDoc.getString("profileImageUrl")
+                    )
+                )
             } catch (e: Exception) {
-                _errorMessage.value = "Error loading profile: ${e.localizedMessage}"
-            } finally {
-                _isLoading.value = false
+                _uiState.value = PatientProfileUiState.Error(
+                    message = e.message ?: "Failed to load profile",
+                    retryable = true
+                )
             }
         }
     }
-
-    fun clearErrorMessage() {
-        _errorMessage.value = null
-    }
 }
+
+sealed class PatientProfileUiState {
+    object Loading : PatientProfileUiState()
+    data class Success(val data: PatientProfileData) : PatientProfileUiState()
+    data class Error(val message: String, val retryable: Boolean) : PatientProfileUiState()
+}
+
+data class PatientProfileData(
+    val fullName: String,
+    val email: String?,
+    val dob: String?,
+    val height: String?,
+    val weight: String?,
+    val medicalHistory: String?,
+    val documents: List<String>,
+    val profileImageUrl: String?
+)

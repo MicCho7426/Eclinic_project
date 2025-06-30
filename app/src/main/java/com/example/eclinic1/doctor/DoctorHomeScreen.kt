@@ -10,16 +10,20 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.eclinic1.R
 import com.example.eclinic1.chat.ChatDetailScreen
 import com.example.eclinic1.chat.ChatScreen
 import com.example.eclinic1.chat.CreateChatDoctorScreen
 import com.example.eclinic1.chat.CreateChatPatientScreen
 import com.example.eclinic1.patient.Calendar
+import com.example.eclinic1.patient.NavigationState
+import com.example.eclinic1.patient.rememberNavigationState
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -32,11 +36,15 @@ fun DoctorHomeScreen(navController: NavController) {
         DoctorNavItem.Chat,
         DoctorNavItem.Calendar
     )
+    val navBackStackEntry by doctorNavController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         bottomBar = {
-            Box(modifier = Modifier) {
-                DoctorBottomNavigation(doctorNavController, items)
+            if (currentRoute != "chatDetail/{chatId}") {
+                Box(modifier = Modifier) {
+                    DoctorBottomNavigation(doctorNavController, items)
+                }
             }
         }
     ) { padding ->
@@ -54,7 +62,9 @@ fun DoctorHomeScreen(navController: NavController) {
 @Composable
 fun DoctorNavHost(
     navController: NavHostController,
-    parentNavController: NavController, // Add parent nav controller
+    parentNavController: NavController,
+    doctorNavController: NavHostController = rememberNavController(),
+    navigationState: NavigationState = rememberNavigationState(),
     modifier: Modifier
 ) {
     NavHost(
@@ -64,7 +74,24 @@ fun DoctorNavHost(
         composable(DoctorNavItem.Home.route) { DoctorHomeContent(navController) }
         composable(DoctorNavItem.Search.route) { DoctorSearchScreen() }
         composable(DoctorNavItem.Chat.route){ ChatScreen(navController) }
-        composable(DoctorNavItem.Calendar.route){ Calendar() }
+        composable(
+            route = "chatDetail/{chatId}",
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+
+            // Hide bottom bar when entering chat detail
+            LaunchedEffect(Unit) {
+                navigationState.showBottomBar = false
+            }
+            // Restore bottom bar when leaving
+            DisposableEffect(Unit) {
+                onDispose {
+                    navigationState.showBottomBar = true
+                }
+            }
+            ChatDetailScreen(chatId = chatId, navController = doctorNavController)
+        }
         composable("doctorSchedule") {DoctorScheduleScreen(navController)}
         composable(DoctorNavItem.Profile.route) {
             Surface(
@@ -85,12 +112,9 @@ fun DoctorNavHost(
                 )
             }
         }
-        composable("chatDetail/{chatId}") { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
-            ChatDetailScreen(chatId = chatId, navController = navController)
-        }
         composable("createChatPatient") { CreateChatPatientScreen(navController) }
         composable("createChatDoctor") { CreateChatDoctorScreen(navController) }
+        composable(DoctorNavItem.Calendar.route) {Calendar()}
     }
 }
 
@@ -131,3 +155,10 @@ sealed class DoctorNavItem(
     object Chat : DoctorNavItem("chat", "Chat", R.drawable.ic_chat)
     object Calendar : DoctorNavItem("calendar", "Calendar", R.drawable.calendar)
 }
+
+class NavigationState {
+    var showBottomBar by mutableStateOf(true)
+}
+
+@Composable
+fun rememberNavigationState() = remember { NavigationState() }

@@ -214,30 +214,6 @@ suspend fun deleteChat(db: FirebaseFirestore, chatId: String) {
     db.collection("chats").document(chatId).delete().await()
 }
 
-fun fetchChats(
-    db: FirebaseFirestore,
-    userId: String,
-    role: String,
-    onResult: (List<ChatEntry>) -> Unit
-) {
-    val field = if (role == "patient") "patientId" else "doctorId"
-    db.collection("chats").whereEqualTo(field, userId).get()
-        .addOnSuccessListener { result ->
-            val chats = result.documents.mapNotNull { doc ->
-                val doctorId = doc.getString("doctorId") ?: ""
-                val patientId = doc.getString("patientId") ?: ""
-
-                ChatEntry(
-                    chatId = doc.id,
-                    doctorId = doctorId,
-                    patientId = patientId,
-                    doctorName = "",
-                    patientName = ""
-                )
-            }
-            onResult(chats)
-        }
-}
 suspend fun fetchChatsWithNames(
     db: FirebaseFirestore,
     currentUserId: String,
@@ -251,23 +227,39 @@ suspend fun fetchChatsWithNames(
 
     return chatsSnapshot.documents.mapNotNull { doc ->
         try {
-            val doctorId = doc.getString("doctorId") ?: ""
-            val patientId = doc.getString("patientId") ?: ""
+            // Get raw IDs from chat document
+            val chatDoctorId = doc.getString("doctorId") ?: ""
+            val chatPatientId = doc.getString("patientId") ?: ""
 
-            Log.d("ChatDebug", "Processing chat - doctorId: $doctorId, patientId: $patientId")
-
+            // Fetch user data - handling both doctor and patient cases
             val (doctorData, patientData) = coroutineScope {
-                val doctorDeferred = async { fetchUserData(db, doctorId) }
-                val patientDeferred = async { fetchUserData(db, patientId) }
+                val doctorDeferred = async {
+                    if (userRole == "doctor") {
+                        // For doctor's view, we're the doctor - get our own data
+                        fetchUserData(db, currentUserId)
+                    } else {
+                        // For patient's view, get doctor's data using the chat's doctorId (which is uid)
+                        fetchUserData(db, chatDoctorId)
+                    }
+                }
+
+                val patientDeferred = async {
+                    if (userRole == "patient") {
+                        // For patient's view, we're the patient - get our own data
+                        fetchUserData(db, currentUserId)
+                    } else {
+                        // For doctor's view, get patient's data using the chat's patientId
+                        fetchUserData(db, chatPatientId)
+                    }
+                }
+
                 Pair(doctorDeferred.await(), patientDeferred.await())
             }
 
-            Log.d("ChatDebug", "Fetched names - Doctor: ${doctorData?.fullName}, Patient: ${patientData?.fullName}")
-
             ChatEntry(
                 chatId = doc.id,
-                doctorId = doctorId,
-                patientId = patientId,
+                doctorId = chatDoctorId,
+                patientId = chatPatientId,
                 doctorName = doctorData?.fullName ?: "Unknown Doctor",
                 patientName = patientData?.fullName ?: "Unknown Patient"
             )
@@ -282,51 +274,20 @@ suspend fun fetchUserData(db: FirebaseFirestore, userId: String): UserData? {
     if (userId.isBlank()) return null
 
     return try {
-        // First try direct user document
         val userDoc = db.collection("users").document(userId).get().await()
         if (userDoc.exists()) {
-            return UserData(
-                uid = userDoc.getString("uid") ?: userId,
+            UserData(
+                uid = userId,
                 firstname = userDoc.getString("firstname") ?: "",
                 surname = userDoc.getString("surname") ?: "",
                 role = userDoc.getString("role") ?: "patient",
-                DoctorId = userDoc.getString("DoctorId")
+                DoctorId = userDoc.getString("DoctorId") // This might be null for patients
             )
+        } else {
+            null
         }
-
-        // If not found, try querying by DoctorId (for doctors)
-        if (userId.matches(Regex("\\d+"))) { // If it's a numeric ID
-            val query = db.collection("users")
-                .whereEqualTo("DoctorId", userId)
-                .limit(1)
-                .get()
-                .await()
-
-            if (!query.isEmpty) {
-                val doc = query.documents[0]
-                return UserData(
-                    uid = doc.getString("uid") ?: "",
-                    firstname = doc.getString("firstname") ?: "",
-                    surname = doc.getString("surname") ?: "",
-                    role = doc.getString("role") ?: "doctor",
-                    DoctorId = doc.getString("DoctorId")
-                )
-            }
-        }
-
-        null
     } catch (e: Exception) {
         Log.e("ChatDebug", "Error fetching user $userId", e)
         null
     }
-}
-
-fun deleteChat(
-    db: FirebaseFirestore,
-    chatId: String,
-    onComplete: () -> Unit
-) {
-    db.collection("chats").document(chatId)
-        .delete()
-        .addOnSuccessListener { onComplete() }
 }

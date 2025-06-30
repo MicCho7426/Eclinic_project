@@ -64,6 +64,8 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-livedata:1.7.8")  // Obsługa LiveData w Compose
     implementation("androidx.compose.material:material-icons-extended")
     implementation ("androidx.compose.animation:animation:1.5.4")
+    implementation ("com.google.accompanist:accompanist-permissions:0.30.1")
+    implementation ("androidx.documentfile:documentfile:1.0.1")
 
     implementation ("androidx.compose.material:material-icons-extended")
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.31.5-beta")

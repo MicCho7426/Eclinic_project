@@ -40,7 +40,7 @@ fun CreateChatPatientScreen(navController: NavController) {
             .addOnSuccessListener { result ->
                 doctorList = result.documents.mapNotNull { doc ->
                     DoctorInfo(
-                        doctorId = doc.getString("DoctorId") ?: doc.id,
+                        doctorId = doc.getString("doctorId") ?: doc.id,
                         fullName = "${doc.getString("firstname") ?: ""} ${doc.getString("surname") ?: ""}",
                         specializations = doc.get("Specialization") as? List<String> ?: emptyList()
                     )

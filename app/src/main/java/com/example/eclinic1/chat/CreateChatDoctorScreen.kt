@@ -40,7 +40,7 @@ fun CreateChatDoctorScreen(navController: NavController) {
         auth.currentUser?.uid?.let { uid ->
             db.collection("users").document(uid).get()
                 .addOnSuccessListener { doc ->
-                    doctorId.value = doc.getString("DoctorId") ?: uid
+                    doctorId.value = doc.getString("doctorId") ?: uid
 
                     // Fetch patients
                     db.collection("users")

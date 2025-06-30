@@ -1,6 +1,8 @@
 package com.example.eclinic1.chat
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -24,11 +26,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLConnection
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -175,7 +187,7 @@ fun ChatBubble(message: ChatMessage, isCurrentUser: Boolean, modifier: Modifier 
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
-
+    val context = LocalContext.current
     val alignment = if (isCurrentUser) Alignment.End else Alignment.Start
 
     Column(
@@ -206,7 +218,13 @@ fun ChatBubble(message: ChatMessage, isCurrentUser: Boolean, modifier: Modifier 
                         Text("📷 Image", color = textColor)
                     }
                     isFileUrl(message.text) -> {
-                        Text("📎 File", color = textColor)
+                        Text(
+                            text = "📎 ${getFileNameFromUrl(message.text)}",
+                            color = textColor,
+                            modifier = Modifier.clickable {
+                                openFileWithExternalApp(context, message.text)
+                            }
+                        )
                     }
                     else -> {
                         Text(message.text, color = textColor)
@@ -283,15 +301,82 @@ fun MessageInputSection(
     }
 }
 
-fun isImageUrl(text: String): Boolean {
-    return text.startsWith("http") &&
-            (text.endsWith(".jpg") || text.endsWith(".png") || text.endsWith(".jpeg"))
+fun getFileNameFromUrl(url: String): String {
+    return try {
+        URL(url).path.substringAfterLast('/')
+    } catch (e: Exception) {
+        "file_${System.currentTimeMillis()}"
+    }
 }
 
 fun isFileUrl(text: String): Boolean {
     return text.startsWith("http") && !isImageUrl(text)
 }
 
+fun isImageUrl(text: String): Boolean {
+    return text.startsWith("http") &&
+            (text.endsWith(".jpg") ||
+                    text.endsWith(".png") ||
+                    text.endsWith(".jpeg"))
+}
+
 fun Date.formatTime(): String {
     return SimpleDateFormat("HH:mm", Locale.getDefault()).format(this)
+}
+
+fun openFileWithExternalApp(context: Context, fileUrl: String) {
+    try {
+        // Create a temporary file first
+        val fileName = getFileNameFromUrl(fileUrl)
+        val mimeType = URLConnection.guessContentTypeFromName(fileName) ?: "*/*"
+
+        // Download the file in background
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL(fileUrl)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.connect()
+
+                val inputStream = connection.inputStream
+                val tempFile = File.createTempFile("temp_", fileName, context.cacheDir)
+                FileOutputStream(tempFile).use { output ->
+                    inputStream.copyTo(output)
+                }
+
+                withContext(Dispatchers.Main) {
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.provider",
+                        tempFile
+                    )
+
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, mimeType)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: ActivityNotFoundException) {
+                        Toast.makeText(
+                            context,
+                            "No app found to open this file type",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Error opening file: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
 }

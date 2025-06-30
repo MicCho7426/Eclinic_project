@@ -1,7 +1,8 @@
 package com.example.eclinic1.admin
 
+import android.R.attr
 import androidx.compose.foundation.Image
-
+import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +29,11 @@ import com.example.eclinic1.firebase.FetchAllUsers
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.foundation.layout.FlowRow
 import java.text.SimpleDateFormat
+import android.R.attr.onClick
+import android.annotation.SuppressLint
+import androidx.compose.ui.platform.LocalContext
+import java.util.Calendar
+
 
 val SPECIALIZATIONS = listOf(
     "Cardiology", "Dermatology", "Endocrinology", "Gastroenterology",
@@ -191,6 +197,7 @@ fun UserListScreen(
 }
 
 
+@SuppressLint("RememberReturnType")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UserCard(
@@ -198,7 +205,7 @@ private fun UserCard(
     currentRole: String,
     onRoleChange: (String) -> Unit,
     onDelete: () -> Unit,
-    onViewSchedules: () -> Unit,
+    onViewSchedules: (String) -> Unit,
     viewModel: FetchAllUsers,
     navController: NavHostController
 ) {
@@ -207,6 +214,9 @@ private fun UserCard(
     var doctorId by remember { mutableStateOf("") }
     var selectedSpecs by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSaveButton by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     LaunchedEffect(user.uid) {
         viewModel.getDoctorDetails(user.uid) { fetchedDoctorId, fetchedSpecs ->
@@ -261,8 +271,9 @@ private fun UserCard(
                 Spacer(Modifier.height(12.dp))
 
                 Button(
-                    onClick = { navController.navigate("schedules/${user.uid}") },
+                    onClick = {showDatePicker=true},
                     modifier = Modifier.fillMaxWidth()
+
                 ) {
                     Text("View Schedules")
                 }
@@ -300,6 +311,29 @@ private fun UserCard(
                         }
                     }
                 }
+                if (showDatePicker) {
+                    val calendar = Calendar.getInstance()
+                    val year = calendar.get(Calendar.YEAR)
+                    val month = calendar.get(Calendar.MONTH)
+                    val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+                    DatePickerDialog(
+                        context,
+                        { _, selectedYear, selectedMonth, selectedDay ->
+                            // Formatowanie daty do postaci YYYY-MM-DD
+                            selectedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay)
+                            showDatePicker = false
+
+                            navController.navigate("schedules/${user.uid}?date=$selectedDate")
+
+                        },
+                        year,
+                        month,
+                        day
+                    ).show()
+                }
+
+                }
             }
 
             IconButton(
@@ -310,7 +344,7 @@ private fun UserCard(
             }
         }
     }
-}
+
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

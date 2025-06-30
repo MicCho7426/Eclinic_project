@@ -35,9 +35,9 @@ class PatientProfileViewModel : ViewModel() {
                 val userDoc = userDeferred.await()
                 val patientDoc = patientDeferred.await()
 
-                if (!patientDoc.exists()) {
+               /* if (!patientDoc.exists()) {
                     throw Exception("Patient record not found")
-                }
+                }*/
 
                 _uiState.value = PatientProfileUiState.Success(
                     PatientProfileData(

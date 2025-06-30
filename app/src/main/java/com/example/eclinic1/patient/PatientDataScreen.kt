@@ -56,6 +56,7 @@ fun PatientDataScreen(
     var height by remember { mutableStateOf(initialData?.height ?: "") }
     var weight by remember { mutableStateOf(initialData?.weight ?: "") }
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
@@ -120,26 +121,6 @@ fun PatientDataScreen(
                 )
             }
 
-            // BMI display when both fields have values
-            if (height.isNotBlank() && weight.isNotBlank()) {
-                val bmiValue = try {
-                    val h = height.toDouble() / 100
-                    val w = weight.toDouble()
-                    w / (h * h)
-                } catch (e: Exception) { null }
-
-                bmiValue?.let {
-                    Text("BMI: ${"%.1f".format(it)}",
-                        color = when {
-                            it < 18.5 -> Color.Blue
-                            it < 25 -> Color.Green
-                            it < 30 -> Color.Yellow
-                            else -> Color.Red
-                        },
-                        modifier = Modifier.fillMaxWidth())
-                }
-            }
-
             // File upload section
             Button(
                 onClick = { launcher.launch("*/*") },
@@ -159,35 +140,60 @@ fun PatientDataScreen(
 
             // Save button - saves only what was entered
             Button(
+                enabled = !isLoading,
                 onClick = {
-                    val userId = auth.currentUser?.uid ?: return@Button
-                    val updates = mutableMapOf<String, Any?>()
-
-                    if (dob.isNotBlank()) updates["dob"] = dob
-                    if (medicalHistory.isNotBlank()) updates["medicalHistory"] = medicalHistory
-                    if (height.isNotBlank()) updates["height"] = height
-                    if (weight.isNotBlank()) updates["weight"] = weight
-
-                    db.collection("patients").document(userId)
-                        .update(updates.filterValues { it != null } as Map<String, Any>)
-                        .addOnSuccessListener {
-                            Toast.makeText(context, "Updated successfully", Toast.LENGTH_SHORT).show()
-                            navController.popBackStack()
-                        }
-
-                    selectedFileUri?.let { uri ->
-                        uploadFileToFirebase(uri, userId, context, db)
+                    isLoading = true
+                    val userId = auth.currentUser?.uid ?: run {
+                        Toast.makeText(context, "Not signed in", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
+
+                    val updates = mutableMapOf<String, Any?>().apply {
+                        if (dob.isNotBlank()) put("dob", dob)
+                        if (medicalHistory.isNotBlank()) put("medicalHistory", medicalHistory)
+                        if (height.isNotBlank()) put("height", height)
+                        if (weight.isNotBlank()) put("weight", weight)
+                    }
+
+                    // Validate at least one change
+                    if (updates.isEmpty() && selectedFileUri == null) {
+                        Toast.makeText(context, "No changes to save", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    // Save data
+                    db.collection("patients").document(userId)
+                        .set(updates, SetOptions.merge())
+                        .addOnSuccessListener {
+                            Toast.makeText(context, "Profile updated", Toast.LENGTH_SHORT).show()
+
+                            // Handle file upload if exists
+                            selectedFileUri?.let { uri ->
+                                uploadFileToFirebase(uri, userId, context, db) {
+                                    navController.popBackStack()
+                                }
+                            } ?: navController.popBackStack()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(context, "Save failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Save Changes")
+                if (isLoading) CircularProgressIndicator()
+                else Text("Save Changes")
             }
         }
     }
 }
 
-private fun uploadFileToFirebase(uri: Uri, userId: String, context: Context, db: FirebaseFirestore) {
+private fun uploadFileToFirebase(
+    uri: Uri,
+    userId: String,
+    context: Context,
+    db: FirebaseFirestore,
+    onComplete: () -> Unit
+) {
     val filename = uri.lastPathSegment ?: "file_${System.currentTimeMillis()}"
     val ref = FirebaseStorage.getInstance()
         .reference
@@ -198,6 +204,11 @@ private fun uploadFileToFirebase(uri: Uri, userId: String, context: Context, db:
             ref.downloadUrl.addOnSuccessListener { downloadUrl ->
                 db.collection("patients").document(userId)
                     .update("uploadedFiles", FieldValue.arrayUnion(downloadUrl.toString()))
+                    .addOnCompleteListener { onComplete() }
             }
+        }
+        .addOnFailureListener { e ->
+            Toast.makeText(context, "Upload failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            onComplete()
         }
 }

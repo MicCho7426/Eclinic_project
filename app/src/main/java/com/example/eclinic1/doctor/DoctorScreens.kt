@@ -1,7 +1,5 @@
 package com.example.eclinic1.doctor
 
-import android.R.attr.data
-import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -26,159 +24,259 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.eclinic1.R
 import com.example.eclinic1.SearchScreen
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import coil.compose.rememberAsyncImagePainter
+import com.example.eclinic1.chat.UserData
+import com.example.eclinic1.patient.Appointment
+import com.google.firebase.Timestamp
 import com.google.firebase.storage.FirebaseStorage
-
-
-
+import kotlinx.coroutines.tasks.await
+import java.util.Calendar
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DoctorHomeContent(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
     val currentDoctorId = auth.currentUser?.uid
     val context = LocalContext.current
+    val now = remember { Date() }
 
-    var appointments by remember { mutableStateOf<List<Pair<String, Map<String, Any>>>>(emptyList()) }
+    var appointments by remember { mutableStateOf<List<Appointment>>(emptyList()) }
+    var todaysAppointments by remember { mutableStateOf<List<Appointment>>(emptyList()) }
+    var upcomingAppointments by remember { mutableStateOf<List<Appointment>>(emptyList()) }
+    var patientCount by remember { mutableStateOf(6) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Fetch all necessary data
     LaunchedEffect(currentDoctorId) {
-        if (currentDoctorId == null) return@LaunchedEffect
-
-        db.collection("meetings")
-            .whereEqualTo("doctorId", currentDoctorId)
-            .whereEqualTo("status", "scheduled")
-            .orderBy("date")
-            .orderBy("startTime")
-            .addSnapshotListener { snapshot, error ->
-                isLoading = false
-                if (error != null) {
-                    errorMessage = "Error loading appointments: ${error.message}"
-                    Log.e("DoctorHome", "Error loading appointments", error)
-                    return@addSnapshotListener
-                }
-
-                val fetchedAppointments = mutableListOf<Pair<String, Map<String, Any>>>()
-                snapshot?.documents?.forEach { doc ->
-                    val data = doc.data ?: return@forEach
-                    fetchedAppointments.add(doc.id to data)
-                }
-
-                // Sort lokalnie po dacie i czasie
-                val sortedAppointments = fetchedAppointments.sortedWith(compareBy(
-                    { (it.second["date"] as? Timestamp)?.toDate() },
-                    { it.second["startTime"] as? String }
-                ))
-
-                // Dodaj nazwy pacjentów
-                sortedAppointments.forEach { (meetingId, meetingData) ->
-                    val patientId = meetingData["patientId"] as? String ?: return@forEach
-
-                    db.collection("users").document(patientId).get()
-                        .addOnSuccessListener { patientDoc ->
-                            val firstName = patientDoc.getString("firstname") ?: ""
-                            val surname = patientDoc.getString("surname") ?: ""
-                            val patientName = "$firstName $surname".trim().ifEmpty { "Patient $patientId" }
-
-                            appointments = appointments.map { (id, data) ->
-                                if (id == meetingId) {
-                                    id to (data + ("patientName" to patientName))
-                                } else id to data
-                            }
-                        }
-                        .addOnFailureListener {
-                            appointments = appointments.map { (id, data) ->
-                                if (id == meetingId) {
-                                    id to (data + ("patientName" to "Patient $patientId"))
-                                } else id to data
-                            }
-                        }
-                }
-
-                appointments = sortedAppointments
-            }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Header
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(16.dp)
-        ) {
-            Column {
-                Text("👨‍⚕️ Welcome, Doctor!", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("Today's Schedule", color = Color.White.copy(alpha = 0.9f), fontSize = 16.sp)
-            }
+        if (currentDoctorId == null) {
+            errorMessage = "Doctor not authenticated"
+            isLoading = false
+            return@LaunchedEffect
         }
 
-        when {
-            isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+        try {
+            // 1. Fetch future appointments with error handling
+            val meetingsSnapshot = try {
+                db.collection("meetings")
+                    .whereEqualTo("doctorId", currentDoctorId)
+                    .whereEqualTo("status", "scheduled")
+                    .whereGreaterThanOrEqualTo("date", Timestamp.now())
+                    .orderBy("date")
+                    .orderBy("startTime")
+                    .get()
+                    .await()
+            } catch (e: Exception) {
+                errorMessage = "Failed to load appointments"
+                Log.e("DoctorHome", "Appointments query failed", e)
+                return@LaunchedEffect
             }
 
-            errorMessage != null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("⚠️ Error loading appointments", color = MaterialTheme.colorScheme.error, fontSize = 18.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(errorMessage ?: "Unknown error")
-                }
-            }
-
-            appointments.isEmpty() -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🎉 No appointments scheduled", fontSize = 18.sp)
-                    Text("You're all caught up!", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
-                }
-            }
-
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(appointments) { (meetingId, meetingData) ->
-                    val patientName = meetingData["patientName"] as? String
-                        ?: "Patient ${meetingData["patientId"]}"
-                    val timestamp = meetingData["date"] as? Timestamp ?: Timestamp.now()
-                    val startTime = meetingData["startTime"] as? String ?: ""
-                    val endTime = meetingData["endTime"] as? String ?: ""
-                    val note = meetingData["note"] as? String ?: ""
-
-                    val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(timestamp.toDate())
-                    val time = "$startTime - $endTime"
-                    val isPast = timestamp.toDate().before(Date())
-
-                    val appointmentText = buildString {
-                        appendLine("${if (isPast) "⏰ " else ""}$patientName")
-                        appendLine("$date at $time")
-                        if (note.isNotEmpty()) appendLine("✉️ Note: $note")
+            // 2. Safely convert documents to Appointment objects
+            val tempAppointments = meetingsSnapshot.documents.mapNotNull { doc ->
+                try {
+                    val data = doc.data ?: run {
+                        Log.w("FirestoreData", "Document ${doc.id} has null data")
+                        return@mapNotNull null
                     }
 
-                    AppointmentCard(
-                        appointment = appointmentText,
-                        isPast = isPast,
-                        onClick = { navController.navigate("appointmentDetail/$meetingId") }
+                    // Safely extract all fields with fallbacks
+                    val patientId = data["patientId"]?.toString()?.takeIf { it.isNotBlank() }
+                        ?: run {
+                            Log.w("InvalidData", "Document ${doc.id} has blank patientId")
+                            return@mapNotNull null
+                        }
+
+                    Appointment(
+                        id = doc.id,
+                        patientId = patientId,
+                        doctorId = data["doctorId"]?.toString() ?: "",
+                        date = when (val dateField = data["date"]) {
+                            is Timestamp -> dateField
+                            is com.google.firebase.Timestamp -> dateField
+                            else -> Timestamp.now().also {
+                                Log.w("DateConversion", "Invalid date in doc ${doc.id}")
+                            }
+                        },
+                        patientName = data["patientName"]?.toString() ?: "",
+                        doctorName = data["doctorName"]?.toString() ?: "",
+                        startTime = data["startTime"]?.toString() ?: "",
+                        endTime = data["endTime"]?.toString() ?: "",
+                        status = data["status"]?.toString() ?: "scheduled"
                     )
+                } catch (e: Exception) {
+                    Log.e("ManualConversion", "Failed to convert doc ${doc.id}", e)
+                    null
+                }
+            }
+
+            // 3. Enrich with patient names
+            appointments = tempAppointments.map { appointment ->
+                try {
+                    val patientDoc = db.collection("users")
+                        .document(appointment.patientId)
+                        .get()
+                        .await()
+
+                    val firstName = patientDoc.getString("firstname") ?: ""
+                    val surname = patientDoc.getString("surname") ?: ""
+                    appointment.copy(patientName = "$firstName $surname".trim())
+                } catch (e: Exception) {
+                    Log.e("PatientError", "Failed to load patient ${appointment.patientId}", e)
+                    appointment.copy(patientName = "Patient ${appointment.patientId}")
+                }
+            }
+
+            // 4. Categorize appointments
+            todaysAppointments = appointments.filter { appointment ->
+                val cal1 = Calendar.getInstance().apply { time = now }
+                val cal2 = Calendar.getInstance().apply { time = appointment.date.toDate() }
+                cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                        cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+            }
+
+            upcomingAppointments = appointments.filter { appointment ->
+                appointment.date.toDate().after(now) && !todaysAppointments.contains(appointment)
+            }
+
+            // 5. Get patient count
+            patientCount = try {
+                db.collection("meetings")
+                    .whereEqualTo("primaryDoctorId", currentDoctorId)
+                    .whereEqualTo("role", "patient")
+                    .get()
+                    .await()
+                    .size()
+            } catch (e: Exception) {
+                Log.e("PatientCount", "Failed to get patient count", e)
+                0
+            }
+
+            isLoading = false
+        } catch (e: Exception) {
+            errorMessage = "Unexpected error occurred"
+            isLoading = false
+            Log.e("DoctorHome", "Data loading error", e)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Welcome Doctor") },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = Color.White
+                )
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            when {
+                isLoading -> FullScreenLoader()
+                errorMessage != null -> ErrorState(
+                    message = errorMessage ?: "Unknown error",
+                    onRetry = { isLoading = true; errorMessage = null }
+                )
+                else -> LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Quick Stats Row
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatCard(
+                                value = todaysAppointments.size.toString(),
+                                label = "Today",
+                                icon = Icons.Default.Event
+                            )
+                            StatCard(
+                                value = upcomingAppointments.size.toString(),
+                                label = "Upcoming",
+                                icon = Icons.Default.Schedule
+                            )
+                            /*StatCard(
+                                value = patientCount.toString(),
+                                label = "Patients",
+                                icon = Icons.Default.People
+                            )*/
+                        }
+                    }
+
+                    // Today's Appointments
+                    if (todaysAppointments.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Today's Appointments",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                        items(todaysAppointments) { appointment ->
+                            AppointmentCard(
+                                appointment = appointment,
+                                onClick = { navController.navigate("appointmentDetail/${appointment.id}") }
+                            )
+                        }
+                    }
+
+                    // Upcoming Appointments
+                    if (upcomingAppointments.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Upcoming Appointments",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                        items(upcomingAppointments) { appointment ->
+                            AppointmentCard(
+                                appointment = appointment,
+                                onClick = { navController.navigate("appointmentDetail/${appointment.id}") }
+                            )
+                        }
+                    }
+
+                    // Empty State
+                    if (todaysAppointments.isEmpty() && upcomingAppointments.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    Icons.Default.Event,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text("No upcoming appointments")
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -186,37 +284,70 @@ fun DoctorHomeContent(navController: NavController) {
 }
 
 @Composable
-fun AppointmentCard(appointment: String, isPast: Boolean, onClick: () -> Unit) {
+private fun AppointmentCard(
+    appointment: Appointment,
+    onClick: () -> Unit
+) {
+    val dateFormatter = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    val formattedDate = remember { dateFormatter.format(appointment.date.toDate()) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPast) Color(0xFFE0E0E0) else MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.MedicalServices,
-                contentDescription = "Appointment",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = appointment,
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                appointment.patientName,
+                style = MaterialTheme.typography.titleMedium
             )
+            Text("$formattedDate • ${appointment.startTime}")
+            Text("Status: ${appointment.status.replaceFirstChar { it.uppercase() }}")
         }
     }
 }
 
+@Composable
+private fun StatCard(value: String, label: String, icon: ImageVector) {
+    Card(
+        modifier = Modifier.width(100.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, contentDescription = label)
+            Text(value, style = MaterialTheme.typography.titleMedium)
+            Text(label, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
 
+@Composable
+private fun FullScreenLoader() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun ErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(message)
+        Button(onClick = onRetry) {
+            Text("Retry")
+        }
+    }
+}
 
 @Composable
 fun DoctorSearchScreen() {
@@ -391,8 +522,6 @@ fun DoctorProfileScreen(navController: NavController, onLogout: () -> Unit) {
     }
 }
 
-
-
 @Composable
 fun ProfileInfoItem(icon: Any, title: String, value: String) {
     Card(
@@ -406,7 +535,7 @@ fun ProfileInfoItem(icon: Any, title: String, value: String) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             when (icon) {
-                is androidx.compose.ui.graphics.vector.ImageVector -> {
+                is ImageVector -> {
                     Icon(
                         imageVector = icon,
                         contentDescription = title,

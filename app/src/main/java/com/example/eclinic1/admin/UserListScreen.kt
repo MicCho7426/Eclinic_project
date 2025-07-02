@@ -52,13 +52,18 @@ fun UserListScreen(
 
     var fabExpanded by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf("All") }
+    var searchQuery by remember { mutableStateOf("") }
 
     var dropdownExpanded by remember { mutableStateOf(false) }
 
-    val filteredUsers = when (selectedRole) {
-        "All" -> users
-        else -> users.filter { it.role.equals(selectedRole, ignoreCase = true) }
-    }
+    val filteredUsers = users
+        .filter { user ->
+            (selectedRole == "All" || user.role.equals(selectedRole, ignoreCase = true)) &&
+                    (searchQuery.isBlank() ||
+                            "${user.firstname} ${user.secondname}".contains(searchQuery, ignoreCase = true) ||
+                            user.firstname.contains(searchQuery, ignoreCase = true) ||
+                            user.secondname.contains(searchQuery, ignoreCase = true))
+        }
     var showPushMessageDialog by remember { mutableStateOf(false) }
     var pushMessageText by remember { mutableStateOf("") }
 
@@ -77,7 +82,7 @@ fun UserListScreen(
                     navController.navigate("create")
                 },
                 onSendMessageClick = {
-                    showPushMessageDialog=true
+                    showPushMessageDialog = true
                 }
             )
         },
@@ -109,8 +114,7 @@ fun UserListScreen(
                 }
             )
         },
-        containerColor = Color(0xff2373c8)
-,
+        containerColor = Color(0xff2373c8),
         content = { innerPadding ->
             Column(
                 modifier = Modifier
@@ -118,10 +122,15 @@ fun UserListScreen(
                     .padding(16.dp)
                     .fillMaxSize()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Filter by:", style = MaterialTheme.typography.bodyLarge, color = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    Box {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Filter by:",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White
+                        )
+                        Spacer(Modifier.width(8.dp))
+
                         Button(onClick = { dropdownExpanded = true }) {
                             Text(
                                 when (selectedRole.lowercase()) {
@@ -148,6 +157,22 @@ fun UserListScreen(
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = searchQuery, onValueChange = { searchQuery = it },
+                            label = { Text("Search user") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = "Search")
+                            }, colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                disabledContainerColor = Color.White
+                            )
+                        )
                     }
                 }
 
@@ -169,7 +194,7 @@ fun UserListScreen(
                             },
                             onDelete = { showDialog = true },
                             onViewSchedules = { navController.navigate("schedules/${user.uid}") },
-                            viewModel=viewModel,
+                            viewModel = viewModel,
                             navController = navController
 
                         )
@@ -187,7 +212,7 @@ fun UserListScreen(
                 SendPushMessageDialog(
                     users = users,
                     onDismiss = { showPushMessageDialog = false },
-                    onSend = {recipientId, message ->
+                    onSend = { recipientId, message ->
                         pushMessageText = message
                         showPushMessageDialog = false
                     }
@@ -271,7 +296,7 @@ private fun UserCard(
                 Spacer(Modifier.height(12.dp))
 
                 Button(
-                    onClick = {showDatePicker=true},
+                    onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth()
 
                 ) {
@@ -321,7 +346,12 @@ private fun UserCard(
                         context,
                         { _, selectedYear, selectedMonth, selectedDay ->
                             // Formatowanie daty do postaci YYYY-MM-DD
-                            selectedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay)
+                            selectedDate = String.format(
+                                "%04d-%02d-%02d",
+                                selectedYear,
+                                selectedMonth + 1,
+                                selectedDay
+                            )
                             showDatePicker = false
 
                             navController.navigate("schedules/${user.uid}?date=$selectedDate")
@@ -333,18 +363,17 @@ private fun UserCard(
                     ).show()
                 }
 
-                }
-            }
-
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
             }
         }
-    }
 
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+        }
+    }
+}
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

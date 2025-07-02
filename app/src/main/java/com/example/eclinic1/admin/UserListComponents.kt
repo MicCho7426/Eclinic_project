@@ -171,17 +171,49 @@ fun SendPushMessageDialog(
                             fetchFcmToken.getToken(selectedUser!!.uid) { token ->
                                 viewModel.sendPushNotification(token, messageText) { success ->
                                     if (success) {
-                                        Toast.makeText(context, "Wysłano wiadomość", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Wysłano wiadomość",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                         onDismiss()
                                     } else {
-                                        Toast.makeText(context, "Błąd wysyłania", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Błąd wysyłania",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 }
                             }
                         } else {
-                            onSend(null, messageText)
-                            Toast.makeText(context, "Wysłano do wszystkich (symulacja)", Toast.LENGTH_SHORT).show()
-                            onDismiss()
+                            // Wysyłanie do wszystkich
+                            fetchFcmToken.getAllTokens { tokens ->
+                                if (tokens.isNotEmpty()) {
+                                    tokens.forEach { token ->
+                                        viewModel.sendPushNotification(
+                                            token,
+                                            messageText
+                                        ) { success ->
+                                            if (success) {
+
+                                                println("Wysłano do: $token")
+                                            } else {
+                                                println("Błąd wysyłania do: $token")
+                                            }
+                                        }
+                                    }
+                                    Toast.makeText(
+                                        context,
+                                        "Wysłano do wszystkich",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    onDismiss()
+                                } else {
+                                    Toast.makeText(context, "Brak tokenów FCM", Toast.LENGTH_SHORT)
+                                        .show()
+                                }
+                            }
                         }
                     }
                 }

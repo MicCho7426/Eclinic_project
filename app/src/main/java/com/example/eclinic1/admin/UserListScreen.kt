@@ -1,7 +1,8 @@
 package com.example.eclinic1.admin
 
+import android.R.attr
 import androidx.compose.foundation.Image
-
+import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +29,11 @@ import com.example.eclinic1.firebase.FetchAllUsers
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.foundation.layout.FlowRow
 import java.text.SimpleDateFormat
+import android.R.attr.onClick
+import android.annotation.SuppressLint
+import androidx.compose.ui.platform.LocalContext
+import java.util.Calendar
+
 
 val SPECIALIZATIONS = listOf(
     "Cardiology", "Dermatology", "Endocrinology", "Gastroenterology",
@@ -46,13 +52,18 @@ fun UserListScreen(
 
     var fabExpanded by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf("All") }
+    var searchQuery by remember { mutableStateOf("") }
 
     var dropdownExpanded by remember { mutableStateOf(false) }
 
-    val filteredUsers = when (selectedRole) {
-        "All" -> users
-        else -> users.filter { it.role.equals(selectedRole, ignoreCase = true) }
-    }
+    val filteredUsers = users
+        .filter { user ->
+            (selectedRole == "All" || user.role.equals(selectedRole, ignoreCase = true)) &&
+                    (searchQuery.isBlank() ||
+                            "${user.firstname} ${user.secondname}".contains(searchQuery, ignoreCase = true) ||
+                            user.firstname.contains(searchQuery, ignoreCase = true) ||
+                            user.secondname.contains(searchQuery, ignoreCase = true))
+        }
     var showPushMessageDialog by remember { mutableStateOf(false) }
     var pushMessageText by remember { mutableStateOf("") }
 
@@ -71,7 +82,7 @@ fun UserListScreen(
                     navController.navigate("create")
                 },
                 onSendMessageClick = {
-                    showPushMessageDialog=true
+                    showPushMessageDialog = true
                 }
             )
         },
@@ -103,8 +114,7 @@ fun UserListScreen(
                 }
             )
         },
-        containerColor = Color(0xff2373c8)
-,
+        containerColor = Color(0xff2373c8),
         content = { innerPadding ->
             Column(
                 modifier = Modifier
@@ -112,10 +122,15 @@ fun UserListScreen(
                     .padding(16.dp)
                     .fillMaxSize()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Filter by:", style = MaterialTheme.typography.bodyLarge, color = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    Box {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Filter by:",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White
+                        )
+                        Spacer(Modifier.width(8.dp))
+
                         Button(onClick = { dropdownExpanded = true }) {
                             Text(
                                 when (selectedRole.lowercase()) {
@@ -142,6 +157,22 @@ fun UserListScreen(
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = searchQuery, onValueChange = { searchQuery = it },
+                            label = { Text("Search user") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = "Search")
+                            }, colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                disabledContainerColor = Color.White
+                            )
+                        )
                     }
                 }
 
@@ -163,7 +194,7 @@ fun UserListScreen(
                             },
                             onDelete = { showDialog = true },
                             onViewSchedules = { navController.navigate("schedules/${user.uid}") },
-                            viewModel=viewModel,
+                            viewModel = viewModel,
                             navController = navController
 
                         )
@@ -181,7 +212,7 @@ fun UserListScreen(
                 SendPushMessageDialog(
                     users = users,
                     onDismiss = { showPushMessageDialog = false },
-                    onSend = {recipientId, message ->
+                    onSend = { recipientId, message ->
                         pushMessageText = message
                         showPushMessageDialog = false
                     }
@@ -191,6 +222,7 @@ fun UserListScreen(
 }
 
 
+@SuppressLint("RememberReturnType")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UserCard(
@@ -198,7 +230,7 @@ private fun UserCard(
     currentRole: String,
     onRoleChange: (String) -> Unit,
     onDelete: () -> Unit,
-    onViewSchedules: () -> Unit,
+    onViewSchedules: (String) -> Unit,
     viewModel: FetchAllUsers,
     navController: NavHostController
 ) {
@@ -207,6 +239,9 @@ private fun UserCard(
     var doctorId by remember { mutableStateOf("") }
     var selectedSpecs by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSaveButton by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     LaunchedEffect(user.uid) {
         viewModel.getDoctorDetails(user.uid) { fetchedDoctorId, fetchedSpecs ->
@@ -261,8 +296,9 @@ private fun UserCard(
                 Spacer(Modifier.height(12.dp))
 
                 Button(
-                    onClick = { navController.navigate("schedules/${user.uid}") },
+                    onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth()
+
                 ) {
                     Text("View Schedules")
                 }
@@ -300,14 +336,41 @@ private fun UserCard(
                         }
                     }
                 }
-            }
+                if (showDatePicker) {
+                    val calendar = Calendar.getInstance()
+                    val year = calendar.get(Calendar.YEAR)
+                    val month = calendar.get(Calendar.MONTH)
+                    val day = calendar.get(Calendar.DAY_OF_MONTH)
 
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                    DatePickerDialog(
+                        context,
+                        { _, selectedYear, selectedMonth, selectedDay ->
+                            // Formatowanie daty do postaci YYYY-MM-DD
+                            selectedDate = String.format(
+                                "%04d-%02d-%02d",
+                                selectedYear,
+                                selectedMonth + 1,
+                                selectedDay
+                            )
+                            showDatePicker = false
+
+                            navController.navigate("schedules/${user.uid}?date=$selectedDate")
+
+                        },
+                        year,
+                        month,
+                        day
+                    ).show()
+                }
+
             }
+        }
+
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
         }
     }
 }

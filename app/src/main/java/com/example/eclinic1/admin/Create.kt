@@ -12,11 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.eclinic1.R
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,6 +31,7 @@ fun Create(
     var surname by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("patient") }
+    var password by remember{ mutableStateOf("") }
 
     val roles = listOf("patient", "doctor", "admin")
     var roleExpanded by remember { mutableStateOf(false) }
@@ -104,6 +108,14 @@ fun Create(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             ExposedDropdownMenuBox(
                 expanded = roleExpanded,
@@ -142,13 +154,19 @@ fun Create(
             Button(
                 onClick = {
                     if (firstname.isNotBlank() && surname.isNotBlank() && email.isNotBlank()) {
-                        createUserInFirestore(
+                        createUserAuthAndFirestore(
+                            email = email,
+                            password = password,
                             firstname = firstname,
                             surname = surname,
-                            email = email,
-                            role = role,
-                            navController = navController
-                        )
+                            role = role
+                        ) { success ->
+                            if (success) {
+                                navController.popBackStack()
+                            } else {
+                                Log.e("Create", "Error creating user")
+                            }
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -160,33 +178,31 @@ fun Create(
 }
 
 
-fun createUserInFirestore(
+fun createUserAuthAndFirestore(
+    email: String,
+    password: String,
     firstname: String,
     surname: String,
-    email: String,
     role: String,
-    navController: NavController
+    onResult: (Boolean) -> Unit
 ) {
-    val db = FirebaseFirestore.getInstance()
-
-
-    val userId = db.collection("users").document().id
-
-    val userData = mapOf(
+    val function = Firebase.functions
+    val data = hashMapOf(
+        "email" to email,
+        "password" to password,
         "firstname" to firstname,
         "surname" to surname,
-        "email" to email,
-        "uid" to userId,
-        "role" to role,
-        "fcm" to ""
+        "role" to role
     )
 
-    db.collection("users").document().set(userData)
+    function
+        .getHttpsCallable("createUser")
+        .call(data)
         .addOnSuccessListener {
-            Log.d("CreateUser", "User created successfully")
-            navController.popBackStack() // Wróć do poprzedniego ekranu
+            onResult(true)
         }
         .addOnFailureListener { e ->
-            Log.e("CreateUser", "Error creating user: ${e.message}")
+            e.printStackTrace()
+            onResult(false)
         }
 }

@@ -23,4 +23,25 @@ class FetchFcmToken : ViewModel() {
                 onResult(null)
             }
     }
+    fun getAllTokens(onResult: (List<String>) -> Unit) {
+
+        db.collection("users").get()
+            .addOnSuccessListener { result ->
+                val tokens = mutableListOf<String>()
+
+                for (document in result) {
+                    val token = document.getString("fcm")
+                    if (!token.isNullOrEmpty()) {
+                        tokens.add(token)
+                    }
+                }
+
+                onResult(tokens)
+            }
+            .addOnFailureListener { exception ->
+                exception.printStackTrace()
+                onResult(emptyList())
+            }
+    }
+
 }

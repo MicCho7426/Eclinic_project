@@ -1,4 +1,4 @@
-package com.example.eclinic1.admin // lub inny Twój pakiet
+package com.example.eclinic1.admin
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -23,6 +23,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        Log.d("FCM_DEBUG", "From: ${remoteMessage.from}")
+        remoteMessage.data.entries.forEach {
+            Log.d("FCM_DEBUG", "Data: ${it.key} = ${it.value}")
+        }
         super.onMessageReceived(remoteMessage)
 
         val title = remoteMessage.notification?.title ?: "Nowe powiadomienie"

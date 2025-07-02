@@ -30,7 +30,7 @@ open class FetchFirestoreName : ViewModel() {
             .addOnSuccessListener { document ->
                 if (document.exists()) {
                     val firstname = document.getString("firstname") ?: ""
-                    val surname = document.getString("surname") ?: "" // Changed from "secondname" to "surname"
+                    val surname = document.getString("surname") ?: ""
 
                     if (firstname.isNotBlank() || surname.isNotBlank()) {
                         _userName.value = "$firstname $surname".trim()

@@ -2,6 +2,7 @@ package com.example.eclinic1.firebase
 
 import android.util.Log
 import androidx.lifecycle.viewModelScope
+import com.example.eclinic1.admin.DoctorWorkday
 import com.example.eclinic1.admin.Schedule
 import com.example.eclinic1.admin.SimpleUser
 import com.google.firebase.auth.FirebaseAuth
@@ -108,6 +109,40 @@ class FetchAllUsers : FetchFirestoreName() {
 
             }
     }
+    fun saveDoctorWorkday(
+        uid: String,
+        date: String,
+        startTime: String,
+        endTime: String,
+        onResult: () -> Unit
+    ) {
+        val data = mapOf(
+            "uid" to uid,
+            "date" to date,
+            "startTime" to startTime,
+            "endTime" to endTime
+        )
+
+        FirebaseFirestore.getInstance()
+            .collection("doctorworkdays")
+            .document("${uid}_$date")
+            .set(data)
+            .addOnSuccessListener { onResult() }
+            .addOnFailureListener { onResult() }
+    }
+
+    fun deleteDoctorWorkday(
+        uid: String,
+        date: String,
+        onResult: () -> Unit
+    ) {
+        FirebaseFirestore.getInstance()
+            .collection("doctorworkdays")
+            .document("${uid}_$date")
+            .delete()
+            .addOnSuccessListener { onResult() }
+            .addOnFailureListener { onResult() }
+    }
 
     fun getUserRole(uid: String): Flow<String> {
         return db.collection("users")
@@ -115,44 +150,26 @@ class FetchAllUsers : FetchFirestoreName() {
             .snapshots()
             .map { it.getString("role") ?: "patient" }
     }
+    fun getUserFullName(uid: String, onResult: (String) -> Unit) {
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val firstname = document.getString("firstname") ?: ""
+                    val surname = document.getString("surname") ?: ""
+                    val fullName = "$firstname $surname".trim()
 
-    suspend fun getSchedules(uid: String,date:String): List<Schedule> {
-        return try {
-            val snapshot = FirebaseFirestore.getInstance()
-                .collection("schedules")
-                .document(uid)
-                .collection("2025-06-09")
-                .get()
-                .await()
-
-            snapshot.documents.mapNotNull { doc ->
-                val isBooked=doc.getBoolean("isBooked")?:false
-                if(isBooked) {
-
-
-                    Schedule(
-                        id = doc.id,
-                        isBooked = doc.getBoolean("isBooked") ?: false,
-                        startTime = doc.getString("startTime") ?: "",
-                        endTime = doc.getString("endTime") ?: "",
-                        date = doc.getDate("date"),
-                        dateString = doc.getString("dateString") ?: ""
-                    )
-                }else{
-                    null
+                    if (fullName.isNotBlank()) {
+                        onResult(fullName)
+                    } else {
+                        onResult("No Name Found")
+                    }
+                } else {
+                    onResult("User Not Found")
                 }
             }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-
-    fun deleteSchedule(scheduleId: String) {
-        FirebaseFirestore.getInstance()
-            .collection("schedules")
-            .document(scheduleId)
-            .delete()
+            .addOnFailureListener { e ->
+                onResult("Error: ${e.localizedMessage}")
+            }
     }
 
 
@@ -162,6 +179,17 @@ class FetchAllUsers : FetchFirestoreName() {
             "message" to message
         )
         functions.getHttpsCallable("sendPushNotification").call(data)
+            .addOnSuccessListener { onComplete(true) }
+            .addOnFailureListener {
+                onComplete(false)
+            }
+    }
+    fun sendPushToAll(tokens: List<String>?,message: String?,onComplete: (Boolean) -> Unit){
+        val data= mapOf(
+            "tokens" to tokens,
+            "message" to message
+        )
+        functions.getHttpsCallable("sendPushToAll").call(data)
             .addOnSuccessListener { onComplete(true) }
             .addOnFailureListener {
                 onComplete(false)
